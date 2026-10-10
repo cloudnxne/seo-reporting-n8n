@@ -1,0 +1,1351 @@
+{
+  "name": "Weekly SEO Flag Report",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "35c99760-6ea6-457d-b454-d5449cff379b",
+      "name": "Client Done (Weekly)",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        3984,
+        1728
+      ],
+      "notes": "Waits for both this client's email/doc step AND its sheet-log step to finish before moving the loop on to the next client."
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9,
+              "triggerAtMinute": 15
+            }
+          ]
+        }
+      },
+      "id": "f21f274e-b4dc-42d6-ba79-b6a23c8c0ff5",
+      "name": "Weekly Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -256,
+        3072
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "25906dc6-ed3a-4ec3-8cdb-e3a45c02d41c",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        3264
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9d89e733-b6e9-4fa3-a8dd-2903aae96db4",
+              "name": "client_name",
+              "value": "={{ $json.client_name }}",
+              "type": "string"
+            },
+            {
+              "id": "ee66ab8c-7cc6-4b17-92be-64b5bd217f13",
+              "name": "domain",
+              "value": "={{ $json.domain }}",
+              "type": "string"
+            },
+            {
+              "id": "309328bf-d6fc-478b-9ee7-bc414696ce87",
+              "name": "ga_property_id",
+              "value": "={{ $json.ga_property_id }}",
+              "type": "string"
+            },
+            {
+              "id": "11520a16-4764-4939-afe0-725c36a1e11a",
+              "name": "gsc_property",
+              "value": "={{ $json.gsc_property }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f726495d-edbe-417f-b4dd-76e8681ba88e",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        16,
+        3168
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const domain = items[0].json.domain;\nconst gscProperty = items[0].json.gsc_property;\nconst now = new Date();\n\nconst fmt = (d) => d.toISOString().split('T')[0];\n\n// Find the most recently completed Monday-Sunday week.\n// getDay(): 0=Sun,1=Mon...6=Sat\nconst dayOfWeek = now.getDay();\nconst daysSinceMonday = (dayOfWeek + 6) % 7; // 0 if today is Monday\nconst thisMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday);\n\n// Last full week = the Mon-Sun week that ended most recently (i.e. the week before this one)\nconst currentWeekStart = new Date(thisMonday);\ncurrentWeekStart.setDate(currentWeekStart.getDate() - 7);\nconst currentWeekEnd = new Date(currentWeekStart);\ncurrentWeekEnd.setDate(currentWeekEnd.getDate() + 6);\n\n// Same week, previous quarter (13 weeks / 91 days earlier), Mon-Sun aligned\nconst qoqWeekStart = new Date(currentWeekStart);\nqoqWeekStart.setDate(qoqWeekStart.getDate() - 91);\nconst qoqWeekEnd = new Date(qoqWeekStart);\nqoqWeekEnd.setDate(qoqWeekEnd.getDate() + 6);\n\n// Same week, previous year (52 weeks / 364 days earlier keeps Mon-Sun alignment)\nconst yoyWeekStart = new Date(currentWeekStart);\nyoyWeekStart.setDate(yoyWeekStart.getDate() - 364);\nconst yoyWeekEnd = new Date(yoyWeekStart);\nyoyWeekEnd.setDate(yoyWeekEnd.getDate() + 6);\n\nreturn [{\n  json: {\n    client_name: items[0].json.client_name,\n    domain: domain,\n    ga_property_id: items[0].json.ga_property_id,\n    gsc_property: gscProperty,\n    accuranker_domain_id: items[0].json.accuranker_domain_id,\n\n    week_label: fmt(currentWeekStart) + ' to ' + fmt(currentWeekEnd),\n\n    // Current week (the week just gone, Mon-Sun)\n    week_current_start: fmt(currentWeekStart),\n    week_current_end: fmt(currentWeekEnd),\n\n    // Same week, previous quarter\n    week_qoq_start: fmt(qoqWeekStart),\n    week_qoq_end: fmt(qoqWeekEnd),\n\n    // Same week, previous year\n    week_yoy_start: fmt(yoyWeekStart),\n    week_yoy_end: fmt(yoyWeekEnd)\n  }\n}];"
+      },
+      "id": "602d8c2a-331d-4e7e-b91c-93defe4f3dfb",
+      "name": "Calculate Weekly Periods",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        3168
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/webmasters/v3/sites/{{ encodeURIComponent($('Calculate Weekly Periods').item.json.gsc_property) }}/searchAnalytics/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSearchConsoleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startDate\": \"{{ $('Calculate Weekly Periods').item.json.week_current_start }}\",\n  \"endDate\": \"{{ $('Calculate Weekly Periods').item.json.week_current_end }}\",\n  \"rowLimit\": 1\n}",
+        "options": {}
+      },
+      "id": "279ef511-32d6-4c87-9fca-43ee9be8dc66",
+      "name": "GSC Totals - Current Week",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        464,
+        2928
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSearchConsoleOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSearchConsoleOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/webmasters/v3/sites/{{ encodeURIComponent($('Calculate Weekly Periods').item.json.gsc_property) }}/searchAnalytics/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSearchConsoleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startDate\": \"{{ $('Calculate Weekly Periods').item.json.week_qoq_start }}\",\n  \"endDate\": \"{{ $('Calculate Weekly Periods').item.json.week_qoq_end }}\",\n  \"rowLimit\": 1\n}",
+        "options": {}
+      },
+      "id": "54bdab4f-a294-409d-97de-7fa59631b78c",
+      "name": "GSC Totals - Same Week Prev Quarter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        464,
+        3088
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSearchConsoleOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSearchConsoleOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/webmasters/v3/sites/{{ encodeURIComponent($('Calculate Weekly Periods').item.json.gsc_property) }}/searchAnalytics/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSearchConsoleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startDate\": \"{{ $('Calculate Weekly Periods').item.json.week_yoy_start }}\",\n  \"endDate\": \"{{ $('Calculate Weekly Periods').item.json.week_yoy_end }}\",\n  \"rowLimit\": 1\n}",
+        "options": {}
+      },
+      "id": "b340865e-1a74-46ab-b49c-de77bb45a7bc",
+      "name": "GSC Totals - Same Week Prev Year",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        464,
+        3248
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSearchConsoleOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSearchConsoleOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e5ba257b-8b6e-47ef-82dc-4f9c960b7040",
+              "name": "gsc_period",
+              "value": "current",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "551ef8b1-a580-49fb-9338-91b1352945f8",
+      "name": "Tag GSC Current",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        688,
+        2928
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "61454df9-52f3-45cb-9775-6ae4c419b337",
+              "name": "gsc_period",
+              "value": "qoq",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "6cbdcb4a-8e27-4787-a9c8-7a441cf92285",
+      "name": "Tag GSC QoQ",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        688,
+        3088
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b8f6e008-b227-46a2-9c76-01a904b8cf5f",
+              "name": "gsc_period",
+              "value": "yoy",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "df9c1ef9-e71b-41d6-a8b5-fcdebed985e2",
+      "name": "Tag GSC YoY",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        688,
+        3248
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "id": "19b17887-a017-4afc-abdd-525ddc165830",
+      "name": "Merge GSC Totals",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        912,
+        3088
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://analyticsdata.googleapis.com/v1beta/properties/{{ $('Calculate Weekly Periods').item.json.ga_property_id }}:runReport",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleAnalyticsOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"dateRanges\": [\n    { \"startDate\": \"{{ $('Calculate Weekly Periods').item.json.week_current_start }}\", \"endDate\": \"{{ $('Calculate Weekly Periods').item.json.week_current_end }}\", \"name\": \"week_current\" },\n    { \"startDate\": \"{{ $('Calculate Weekly Periods').item.json.week_qoq_start }}\", \"endDate\": \"{{ $('Calculate Weekly Periods').item.json.week_qoq_end }}\", \"name\": \"week_qoq\" },\n    { \"startDate\": \"{{ $('Calculate Weekly Periods').item.json.week_yoy_start }}\", \"endDate\": \"{{ $('Calculate Weekly Periods').item.json.week_yoy_end }}\", \"name\": \"week_yoy\" }\n  ],\n  \"metrics\": [\n    { \"name\": \"sessions\" },\n    { \"name\": \"userEngagementDuration\" },\n    { \"name\": \"newUsers\" },\n    { \"name\": \"keyEvents\" }\n  ],\n  \"dimensions\": []\n}",
+        "options": {}
+      },
+      "id": "321a2013-cab8-4d86-bac4-730fd54aa4e5",
+      "name": "GA4 - Weekly Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        464,
+        3440
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleAnalyticsOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleAnalyticsOAuth2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://analyticsdata.googleapis.com/v1beta/properties/{{ $('Calculate Weekly Periods').item.json.ga_property_id }}:runReport",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleAnalyticsOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"dateRanges\": [\n    { \"startDate\": \"{{ $('Calculate Weekly Periods').item.json.week_current_start }}\", \"endDate\": \"{{ $('Calculate Weekly Periods').item.json.week_current_end }}\", \"name\": \"week_current\" },\n    { \"startDate\": \"{{ $('Calculate Weekly Periods').item.json.week_qoq_start }}\", \"endDate\": \"{{ $('Calculate Weekly Periods').item.json.week_qoq_end }}\", \"name\": \"week_qoq\" },\n    { \"startDate\": \"{{ $('Calculate Weekly Periods').item.json.week_yoy_start }}\", \"endDate\": \"{{ $('Calculate Weekly Periods').item.json.week_yoy_end }}\", \"name\": \"week_yoy\" }\n  ],\n  \"dimensions\": [ { \"name\": \"sessionDefaultChannelGroup\" } ],\n  \"metrics\": [\n    { \"name\": \"sessions\" },\n    { \"name\": \"keyEvents\" }\n  ],\n  \"dimensionFilter\": {\n    \"filter\": {\n      \"fieldName\": \"sessionDefaultChannelGroup\",\n      \"stringFilter\": { \"value\": \"Organic Search\" }\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "e42fbc3f-beff-42d3-bde8-bad7b0403057",
+      "name": "GA4 - Weekly Organic Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        464,
+        3600
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleAnalyticsOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleAnalyticsOAuth2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "0b7e9b3d-8a9d-4446-8dd5-4e4d22d77b94",
+      "name": "Merge GA4 Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        688,
+        3520
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://app.accuranker.com/api/v4/domains/?fields=id,domain",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "530c10f7-2b46-4581-8644-8e0946ebc323",
+      "name": "Accuranker - List Domains",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        464,
+        3792
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalise both sides the same way before comparing - strips protocol, www.,\n// a trailing slash, and lower-cases - so a trailing slash or http(s) prefix\n// coming from the Clients sheet can never cause a false \"Domain not found\".\nfunction normalise(d) {\n  return String(d || '')\n    .trim()\n    .toLowerCase()\n    .replace(/^https?:\\/\\//, '')\n    .replace(/^www\\./, '')\n    .replace(/\\/+$/, '');\n}\n\nconst domain = $('Edit Fields').item.json.domain;\nconst cleanDomain = normalise(domain);\n\nfor (const item of $input.all()) {\n  if (item.json.domain && normalise(item.json.domain) === cleanDomain) {\n    return [{ json: item.json }];\n  }\n}\n\n// Not tracked in AccuRanker under this domain - fall through with no id rather\n// than throwing, so the keyword-fetch nodes downstream can skip gracefully\n// instead of building a \"domains//keywords\" URL and 404ing the whole loop.\nconsole.warn(`AccuRanker: no domain match for \"${domain}\" - rankings will be skipped for this client this run.`);\nreturn [{ json: { error: 'Domain not found', id: null, domain } }];"
+      },
+      "id": "bf67312e-8c38-476f-90c6-ccb51864bed7",
+      "name": "Accuranker - Find Domain ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        3792
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice&date={{ $('Calculate Weekly Periods').item.json.week_current_end }}&filter_id=9179",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "114bdff4-2fae-4454-9540-cfc6eae1ea8b",
+      "name": "Accuranker - Keywords Current Week",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        912,
+        3680
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice&date={{ $('Calculate Weekly Periods').item.json.week_qoq_end }}&filter_id=9179",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "7664784b-2eab-49fe-a6f6-7d42666d67d7",
+      "name": "Accuranker - Keywords Same Week Prev Quarter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        912,
+        3792
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice&date={{ $('Calculate Weekly Periods').item.json.week_yoy_end }}&filter_id=9179",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "3e78f11a-3fbd-4e47-9294-88f6474f94a4",
+      "name": "Accuranker - Keywords Same Week Prev Year",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        912,
+        3888
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nreturn [{ json: { accuranker_period: 'current', rows } }];"
+      },
+      "id": "dfc5d38c-7b63-431c-bb40-e4e423367d95",
+      "name": "Tag Accuranker Current",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        3680
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nreturn [{ json: { accuranker_period: 'qoq', rows } }];"
+      },
+      "id": "ff64deae-377f-4276-af65-b0ceabbb9145",
+      "name": "Tag Accuranker QoQ",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        3792
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nreturn [{ json: { accuranker_period: 'yoy', rows } }];"
+      },
+      "id": "f4ba305c-f49a-4532-b167-dc547b530b7a",
+      "name": "Tag Accuranker YoY",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        3888
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "id": "ab4712a2-4e63-494c-8707-475fd1ab3cd7",
+      "name": "Merge Accuranker Snapshots",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1360,
+        3792
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "id": "d986d445-8791-46bd-baf2-a8aed5704a02",
+      "name": "Merge All Weekly Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1584,
+        3440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const merged = items[0].json;\nconst client = $('Calculate Weekly Periods').item.json;\n\n// ---- GSC totals ----\nconst gscRows = merged.rows || [];\n// Each incoming branch was tagged with gsc_period and carries the raw GSC API response fields (rows[0].clicks etc)\n// Re-collect from all three GSC-tagged items via their own node outputs since Merge combines items, not fields.\nconst gscCurrent = $('Tag GSC Current').first().json;\nconst gscQoQ = $('Tag GSC QoQ').first().json;\nconst gscYoY = $('Tag GSC YoY').first().json;\n\n// A failed GSC call (site not verified / no access - onError: continueRegularOutput\n// upstream) comes through with no \"rows\" array at all, as opposed to a genuine zero-\n// traffic week which still has rows: [{clicks: 0, ...}]. Track that distinction so a\n// data-fetch failure is never reported as a real \"-100%\" drop below.\nconst hasRows = (item) => Array.isArray(item && item.rows);\nconst gsc_current_available = hasRows(gscCurrent);\nconst gsc_qoq_available = hasRows(gscQoQ);\nconst gsc_yoy_available = hasRows(gscYoY);\n\nconst gscTotal = (item) => {\n  const r = (item.rows || [])[0];\n  return r ? { clicks: r.clicks || 0, impressions: r.impressions || 0, ctr: r.ctr || 0, position: r.position || 0 } : { clicks: 0, impressions: 0, ctr: 0, position: 0 };\n};\n\nconst gsc_current = gscTotal(gscCurrent);\nconst gsc_qoq = gscTotal(gscQoQ);\nconst gsc_yoy = gscTotal(gscYoY);\n\n// ---- GA4 ----\nconst ga4Standard = $('GA4 - Weekly Metrics').first().json;\nconst ga4Organic = $('GA4 - Weekly Organic Metrics').first().json;\n\nconst ga4_available = Array.isArray(ga4Standard && ga4Standard.rows);\nconst organic_available = Array.isArray(ga4Organic && ga4Organic.rows);\n\nconst getGa4 = (resp, rangeName, metricIndex) => {\n  const rows = resp.rows || [];\n  const row = rows.find(r => r.dimensionValues.some(d => d.value === rangeName));\n  return row ? parseFloat(row.metricValues[metricIndex].value) : 0;\n};\n\nconst ga4_current = { sessions: getGa4(ga4Standard, 'week_current', 0), engagement: getGa4(ga4Standard, 'week_current', 1), newUsers: getGa4(ga4Standard, 'week_current', 2), keyEvents: getGa4(ga4Standard, 'week_current', 3) };\nconst ga4_qoq = { sessions: getGa4(ga4Standard, 'week_qoq', 0), engagement: getGa4(ga4Standard, 'week_qoq', 1), newUsers: getGa4(ga4Standard, 'week_qoq', 2), keyEvents: getGa4(ga4Standard, 'week_qoq', 3) };\nconst ga4_yoy = { sessions: getGa4(ga4Standard, 'week_yoy', 0), engagement: getGa4(ga4Standard, 'week_yoy', 1), newUsers: getGa4(ga4Standard, 'week_yoy', 2), keyEvents: getGa4(ga4Standard, 'week_yoy', 3) };\n\nconst getGa4Organic = (resp, rangeName, metricIndex) => {\n  const rows = resp.rows || [];\n  const row = rows.find(r => r.dimensionValues.some(d => d.value === rangeName) && r.dimensionValues.some(d => d.value === 'Organic Search'));\n  return row ? parseFloat(row.metricValues[metricIndex].value) : 0;\n};\n\nconst organic_current = { sessions: getGa4Organic(ga4Organic, 'week_current', 0), keyEvents: getGa4Organic(ga4Organic, 'week_current', 1) };\nconst organic_qoq = { sessions: getGa4Organic(ga4Organic, 'week_qoq', 0), keyEvents: getGa4Organic(ga4Organic, 'week_qoq', 1) };\nconst organic_yoy = { sessions: getGa4Organic(ga4Organic, 'week_yoy', 0), keyEvents: getGa4Organic(ga4Organic, 'week_yoy', 1) };\n\n// ---- AccuRanker ----\nconst arCurrent = $('Tag Accuranker Current').first().json.rows || [];\nconst arQoQ = $('Tag Accuranker QoQ').first().json.rows || [];\nconst arYoY = $('Tag Accuranker YoY').first().json.rows || [];\n\nconst summariseRanks = (rows) => {\n  const ranked = rows.map(k => (k.ranks && k.ranks.rank) || null).filter(r => r !== null && r > 0);\n  const avg = ranked.length ? (ranked.reduce((a, b) => a + b, 0) / ranked.length) : null;\n  const top3 = ranked.filter(r => r <= 3).length;\n  const top10 = ranked.filter(r => r <= 10).length;\n  return { avgPosition: avg, top3Count: top3, top10Count: top10, trackedKeywords: rows.length };\n};\n\nconst ar_current = summariseRanks(arCurrent);\nconst ar_qoq = summariseRanks(arQoQ);\nconst ar_yoy = summariseRanks(arYoY);\n\n// Find the biggest individual keyword rank movers (current vs previous week's own data isn't available here,\n// so movers are measured current vs QoQ and current vs YoY as configured).\nconst byKeyword = (rows) => {\n  const map = {};\n  for (const k of rows) {\n    if (k.keyword) map[k.keyword] = (k.ranks && k.ranks.rank) || null;\n  }\n  return map;\n};\nconst curMap = byKeyword(arCurrent);\nconst yoyMap = byKeyword(arYoY);\nconst qoqMap = byKeyword(arQoQ);\n\nconst movers = [];\nfor (const [keyword, curRank] of Object.entries(curMap)) {\n  if (curRank === null) continue;\n  const qoqRank = qoqMap[keyword];\n  const yoyRank = yoyMap[keyword];\n  if (qoqRank && Math.abs(curRank - qoqRank) >= 5) {\n    movers.push({ keyword, curRank, comparedRank: qoqRank, vs: 'same week last quarter', change: qoqRank - curRank });\n  } else if (yoyRank && Math.abs(curRank - yoyRank) >= 5) {\n    movers.push({ keyword, curRank, comparedRank: yoyRank, vs: 'same week last year', change: yoyRank - curRank });\n  }\n}\nmovers.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));\nconst topMovers = movers.slice(0, 15);\n\n// ---- Threshold-based flags ----\nconst pctChange = (cur, prev) => (prev === 0 || prev === null || prev === undefined) ? null : ((cur - prev) / prev) * 100;\n\nconst flags = [];\nconst TRAFFIC_THRESHOLD = 15; // percent\nconst LEADS_THRESHOLD = 20;   // percent\nconst RANK_THRESHOLD = 5;     // positions\n\nfunction checkMetric(label, cur, prev, vsLabel, threshold, unit) {\n  const pct = pctChange(cur, prev);\n  if (pct !== null && Math.abs(pct) >= threshold) {\n    flags.push({\n      label, vsLabel, current: cur, previous: prev, pctChange: Math.round(pct * 10) / 10,\n      direction: pct > 0 ? 'up' : 'down', unit\n    });\n  }\n}\n\nif (gsc_current_available && gsc_qoq_available) checkMetric('GSC Clicks', gsc_current.clicks, gsc_qoq.clicks, 'same week last quarter', TRAFFIC_THRESHOLD, 'clicks');\nif (gsc_current_available && gsc_yoy_available) checkMetric('GSC Clicks', gsc_current.clicks, gsc_yoy.clicks, 'same week last year', TRAFFIC_THRESHOLD, 'clicks');\nif (gsc_current_available && gsc_qoq_available) checkMetric('GSC Impressions', gsc_current.impressions, gsc_qoq.impressions, 'same week last quarter', TRAFFIC_THRESHOLD, 'impressions');\nif (gsc_current_available && gsc_yoy_available) checkMetric('GSC Impressions', gsc_current.impressions, gsc_yoy.impressions, 'same week last year', TRAFFIC_THRESHOLD, 'impressions');\nif (organic_available) checkMetric('Organic Sessions (GA4)', organic_current.sessions, organic_qoq.sessions, 'same week last quarter', TRAFFIC_THRESHOLD, 'sessions');\nif (organic_available) checkMetric('Organic Sessions (GA4)', organic_current.sessions, organic_yoy.sessions, 'same week last year', TRAFFIC_THRESHOLD, 'sessions');\nif (organic_available) checkMetric('Organic Leads/Key Events (GA4)', organic_current.keyEvents, organic_qoq.keyEvents, 'same week last quarter', LEADS_THRESHOLD, 'leads');\nif (organic_available) checkMetric('Organic Leads/Key Events (GA4)', organic_current.keyEvents, organic_yoy.keyEvents, 'same week last year', LEADS_THRESHOLD, 'leads');\nif (ga4_available) checkMetric('Total Site Leads/Key Events (GA4)', ga4_current.keyEvents, ga4_qoq.keyEvents, 'same week last quarter', LEADS_THRESHOLD, 'leads');\nif (ga4_available) checkMetric('Total Site Leads/Key Events (GA4)', ga4_current.keyEvents, ga4_yoy.keyEvents, 'same week last year', LEADS_THRESHOLD, 'leads');\n\n// Surface the gap itself rather than staying silent about it - a missing data source\n// is worth knowing about even when it can't be turned into a flag.\nconst dataGaps = [];\nif (!gsc_current_available || !gsc_qoq_available || !gsc_yoy_available) {\n  dataGaps.push('Google Search Console data was not available this week (check GSC access for this site) - GSC comparisons skipped.');\n}\nif (!ga4_available) {\n  dataGaps.push('GA4 data was not available this week (check GA4 property access) - GA4 comparisons skipped.');\n}\nif (!organic_available) {\n  dataGaps.push('GA4 organic-traffic data was not available this week - organic comparisons skipped.');\n}\n\nif (ar_current.avgPosition !== null && ar_qoq.avgPosition !== null && Math.abs(ar_current.avgPosition - ar_qoq.avgPosition) >= RANK_THRESHOLD) {\n  flags.push({ label: 'Average Keyword Position', vsLabel: 'same week last quarter', current: ar_current.avgPosition, previous: ar_qoq.avgPosition, direction: ar_current.avgPosition < ar_qoq.avgPosition ? 'improved' : 'worsened', unit: 'position' });\n}\nif (ar_current.avgPosition !== null && ar_yoy.avgPosition !== null && Math.abs(ar_current.avgPosition - ar_yoy.avgPosition) >= RANK_THRESHOLD) {\n  flags.push({ label: 'Average Keyword Position', vsLabel: 'same week last year', current: ar_current.avgPosition, previous: ar_yoy.avgPosition, direction: ar_current.avgPosition < ar_yoy.avgPosition ? 'improved' : 'worsened', unit: 'position' });\n}\n\n// ---- Build the raw text block the AI will summarise ----\nconst fmtNum = (n) => (n === null || n === undefined) ? 'n/a' : (Math.round(n * 100) / 100).toLocaleString();\n\nlet raw = `Client: ${client.client_name}\\nWeek covered (Mon-Sun): ${client.week_current_start} to ${client.week_current_end}\\nCompared to same week last quarter: ${client.week_qoq_start} to ${client.week_qoq_end}\\nCompared to same week last year: ${client.week_yoy_start} to ${client.week_yoy_end}\\n\\n`;\n\nraw += `## Google Search Console (site totals)\\n`;\nraw += `Clicks: ${gsc_current.clicks} (last quarter same week: ${gsc_qoq.clicks}, last year same week: ${gsc_yoy.clicks})\\n`;\nraw += `Impressions: ${gsc_current.impressions} (last quarter same week: ${gsc_qoq.impressions}, last year same week: ${gsc_yoy.impressions})\\n`;\nraw += `Average CTR: ${(gsc_current.ctr * 100).toFixed(2)}% (last quarter same week: ${(gsc_qoq.ctr * 100).toFixed(2)}%, last year same week: ${(gsc_yoy.ctr * 100).toFixed(2)}%)\\n`;\nraw += `Average Position: ${gsc_current.position.toFixed(1)} (last quarter same week: ${gsc_qoq.position.toFixed(1)}, last year same week: ${gsc_yoy.position.toFixed(1)})\\n\\n`;\n\nraw += `## GA4 — All Traffic\\n`;\nraw += `Sessions: ${ga4_current.sessions} (last quarter same week: ${ga4_qoq.sessions}, last year same week: ${ga4_yoy.sessions})\\n`;\nraw += `New Users: ${ga4_current.newUsers} (last quarter same week: ${ga4_qoq.newUsers}, last year same week: ${ga4_yoy.newUsers})\\n`;\nraw += `Key Events/Leads: ${ga4_current.keyEvents} (last quarter same week: ${ga4_qoq.keyEvents}, last year same week: ${ga4_yoy.keyEvents})\\n\\n`;\n\nraw += `## GA4 — Organic Search Only\\n`;\nraw += `Organic Sessions: ${organic_current.sessions} (last quarter same week: ${organic_qoq.sessions}, last year same week: ${organic_yoy.sessions})\\n`;\nraw += `Organic Key Events/Leads: ${organic_current.keyEvents} (last quarter same week: ${organic_qoq.keyEvents}, last year same week: ${organic_yoy.keyEvents})\\n\\n`;\n\nraw += `## AccuRanker Rankings\\n`;\nraw += `Average Position: ${fmtNum(ar_current.avgPosition)} (last quarter same week: ${fmtNum(ar_qoq.avgPosition)}, last year same week: ${fmtNum(ar_yoy.avgPosition)})\\n`;\nraw += `Keywords in Top 3: ${ar_current.top3Count} (last quarter same week: ${ar_qoq.top3Count}, last year same week: ${ar_yoy.top3Count})\\n`;\nraw += `Keywords in Top 10: ${ar_current.top10Count} (last quarter same week: ${ar_qoq.top10Count}, last year same week: ${ar_yoy.top10Count})\\n`;\nraw += `Tracked Keywords: ${ar_current.trackedKeywords}\\n\\n`;\n\nif (topMovers.length) {\n  raw += `## Notable Keyword Rank Movers (5+ positions)\\n`;\n  for (const m of topMovers) {\n    const dir = m.change > 0 ? 'improved' : 'dropped';\n    raw += `- \"${m.keyword}\": now #${m.curRank}, was #${m.comparedRank} vs ${m.vs} (${dir} ${Math.abs(m.change)} positions)\\n`;\n  }\n  raw += `\\n`;\n}\n\nraw += `## Auto-Flagged Items (threshold breaches: traffic ±${TRAFFIC_THRESHOLD}%, leads ±${LEADS_THRESHOLD}%, avg position ±${RANK_THRESHOLD})\\n`;\nif (flags.length === 0) {\n  raw += `No metrics breached the flagging thresholds this week.\\n`;\n} else {\n  for (const f of flags) {\n    if (f.unit === 'position') {\n      raw += `- ${f.label} ${f.direction} from ${fmtNum(f.previous)} to ${fmtNum(f.current)} vs ${f.vsLabel}\\n`;\n    } else {\n      raw += `- ${f.label} ${f.direction} ${Math.abs(f.pctChange)}% (${f.previous} -> ${f.current}) vs ${f.vsLabel}\\n`;\n    }\n  }\n}\n\nif (dataGaps.length) {\n  raw += `\\n## Data Gaps\\n`;\n  dataGaps.forEach(g => { raw += `- ${g}\\n`; });\n}\n\nreturn [{\n  json: {\n    client_name: client.client_name,\n    domain: client.domain,\n    week_label: client.week_label,\n    week_start: client.week_current_start,\n    week_end: client.week_current_end,\n    raw_summary: raw,\n    flags,\n    flagCount: flags.length,\n    topMovers,\n\n    // Extra raw numbers, kept only for the dashboard sheet log below -\n    // the email path above never reads these.\n    run_date: new Date().toISOString().split('T')[0],\n    gsc_clicks_current: gsc_current_available ? gsc_current.clicks : null,\n    gsc_clicks_yoy: gsc_yoy_available ? gsc_yoy.clicks : null,\n    gsc_impressions_current: gsc_current_available ? gsc_current.impressions : null,\n    gsc_avg_position_current: gsc_current_available ? gsc_current.position : null,\n    ga4_sessions_current: ga4_available ? ga4_current.sessions : null,\n    ga4_leads_current: ga4_available ? ga4_current.keyEvents : null,\n    organic_sessions_current: organic_available ? organic_current.sessions : null,\n    organic_leads_current: organic_available ? organic_current.keyEvents : null,\n    accuranker_avg_position: ar_current.avgPosition,\n    accuranker_top3: ar_current.top3Count,\n    accuranker_top10: ar_current.top10Count,\n    data_gaps: dataGaps.length ? dataGaps.join('; ') : null\n  }\n}];"
+      },
+      "id": "9d1af1d1-2dd2-46d5-8715-6f1d77f34518",
+      "name": "Build Weekly Flags",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        3440
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: \"claude-haiku-5-5\",\n  max_tokens: 2048,\n  system: `Role & Persona:\nYou are an expert SEO Account Manager reviewing one week of client performance data (Monday to Sunday). Your job is to turn the raw weekly data and auto-flagged threshold breaches into a short, scannable \"what needs action this week\" briefing for the account manager - NOT a full monthly report.\n\nInput Data:\nYou will receive raw text with: Google Search Console totals, GA4 traffic and leads (all traffic and organic-only), AccuRanker average position and top3/top10 counts, notable individual keyword rank movers, any data gaps where a source was unavailable this week, and a list of metrics that already breached fixed percentage/position thresholds versus the same week last quarter and the same week last year.\n\nReading the numbers correctly:\n- Lower is better for average position (GSC) and average rank (AccuRanker). A negative percentage change on those is an improvement, not a decline. Double check the direction before calling anything a win or a loss.\n- Sanity check the base before calling out a percentage. A big percentage on a tiny number (for example leads going from 1 to 2) is not a trend.\n- If a data gap is listed for a source, do not treat its missing data as a drop to zero. Say the data was unavailable and skip that comparison rather than flagging a false decline.\n\nAnalysis Logic:\n- Lead with whether this week needs action at all. If nothing breached a threshold and there are no notable keyword movers, say so plainly and keep the summary very short.\n- When something did breach a threshold, explain the likely story in plain English (e.g. seasonality, a technical issue, a ranking drop, a tracking gap) using only what the data supports - do not invent causes.\n- Distinguish noise from signal: a single week's numbers are naturally volatile, so call out clearly if something looks like normal weekly variance versus something that looks structural or worth investigating.\n- Every flagged item must end with a suggested next step or an explicit \"keep monitoring, no action needed yet\".\n\nOutput Structure & Formatting:\nUse Markdown with bold and bullet points, plus emojis to make it scannable. Keep it short, this is a weekly flag, not a monthly deep dive.\n1. Heading: ### **Weekly SEO Flags for [Client Name] - [week dates]**\n2. Section 1: Headline (1-2 sentences: does this week need action or not)\n3. Section 2: Flagged This Week (bulleted, one line per item, each ending in a next step or \"monitor only\")\n4. Section 3: Keyword Movers Worth Knowing (only if any were supplied, otherwise omit this section)\n5. Section 4: Data Gaps (only if any sources were unavailable this week, one line each, otherwise omit this section)\n6. Keep total length under 250 words unless there are multiple serious flags.\n\nStyle Rules:\n- Tone: professional, insightful, direct and encouraging.\n- Language: UK English throughout.\n- Punctuation: never use em dashes. Use commas, full stops, colons or brackets instead.\n- Voice: natural, plain human English that reads as written by a person. Avoid corporate jargon and filler phrases.\n- Emphasis: bold key metrics (percentages, numbers) so the briefing can be skimmed quickly.\n- No fluff: do not repeat the raw data lists. Summarise what the data means and why it matters, with a plain-English \"so what\" for every stat you mention.`,\n  messages: [\n    { role: \"user\", content: $json.raw_summary }\n  ]\n}) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "06dd2c7a-3610-49be-ae06-296cd1149e39",
+      "name": "Analyse with Claude (Haiku - Weekly)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2032,
+        3440
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your anthropicApi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Turn the model's markdown reply into styled HTML for the email body.\nconst aiItem = $input.first().json;\n// Claude's Messages API returns { content: [ { type: 'text', text: '...' } ] }.\n// The message.content / response / text checks are kept as a fallback in\n// case this ever points at a different (e.g. Ollama-shaped) endpoint again.\nconst aiContent = (Array.isArray(aiItem.content) && aiItem.content[0] && aiItem.content[0].text)\n  || (aiItem.message && aiItem.message.content)\n  || aiItem.response\n  || aiItem.text\n  || '';\n\n// The Qwen call has onError: continueRegularOutput, so if the local AI call\n// failed or timed out this item won't have message/response/text at all -\n// without this fallback that used to silently send a blank email. Surface it\n// instead, along with whatever raw flags were already calculated, so a\n// failed AI call is obvious rather than looking like \"nothing happened\".\nconst clientName = $('Calculate Weekly Periods').first().json.client_name || 'this client';\nconst rawSummary = ($('Build Weekly Flags').first().json.raw_summary) || '';\nconst raw = aiContent || (\n  `### **Weekly SEO Flags for ${clientName}**\\n\\n` +\n  `**AI summary unavailable this week** - the AI analysis did not return a response (likely a rate limit, auth, or connection issue). ` +\n  `Showing the raw flagged data below instead.\\n\\n${rawSummary}`\n);\n\nfunction escapeHtml(s) {\n  return s\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;');\n}\n\nfunction inlineFormat(line) {\n  line = line.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');\n  line = line.replace(/(^|[^*])\\*([^*\\n]+)\\*(?!\\*)/g, '$1<em>$2</em>');\n  return line;\n}\n\nfunction mdToHtml(md) {\n  const lines = escapeHtml(md).split('\\n');\n  let html = '';\n  let inUl = false;\n  let inOl = false;\n\n  const closeLists = () => {\n    if (inUl) { html += '</ul>'; inUl = false; }\n    if (inOl) { html += '</ol>'; inOl = false; }\n  };\n\n  for (const rawLine of lines) {\n    const line = rawLine.trim();\n\n    if (line === '') { closeLists(); continue; }\n\n    if (/^(\\*\\*\\*+|---+)$/.test(line)) {\n      closeLists();\n      html += '<hr style=\"border:none;border-top:1px solid #ddd;margin:24px 0;\">';\n      continue;\n    }\n\n    let m;\n    if ((m = line.match(/^######\\s+(.*)$/))) { closeLists(); html += `<h6 style=\"margin:18px 0 6px;\">${inlineFormat(m[1])}</h6>`; continue; }\n    if ((m = line.match(/^#####\\s+(.*)$/)))  { closeLists(); html += `<h5 style=\"margin:18px 0 6px;\">${inlineFormat(m[1])}</h5>`; continue; }\n    if ((m = line.match(/^####\\s+(.*)$/)))   { closeLists(); html += `<h4 style=\"margin:18px 0 6px;\">${inlineFormat(m[1])}</h4>`; continue; }\n    if ((m = line.match(/^###\\s+(.*)$/)))    { closeLists(); html += `<h3 style=\"margin:22px 0 8px;color:#1a1a1a;\">${inlineFormat(m[1])}</h3>`; continue; }\n    if ((m = line.match(/^##\\s+(.*)$/)))     { closeLists(); html += `<h2 style=\"margin:24px 0 10px;color:#1a1a1a;\">${inlineFormat(m[1])}</h2>`; continue; }\n    if ((m = line.match(/^#\\s+(.*)$/)))      { closeLists(); html += `<h1 style=\"margin:24px 0 10px;color:#1a1a1a;\">${inlineFormat(m[1])}</h1>`; continue; }\n\n    if ((m = line.match(/^\\d+\\.\\s+(.*)$/))) {\n      if (!inUl && !inOl) { html += '<ol style=\"margin:8px 0;padding-left:22px;\">'; inOl = true; }\n      else if (inUl) { closeLists(); html += '<ol style=\"margin:8px 0;padding-left:22px;\">'; inOl = true; }\n      html += `<li style=\"margin-bottom:4px;\">${inlineFormat(m[1])}</li>`;\n      continue;\n    }\n\n    if ((m = line.match(/^[-*]\\s+(.*)$/))) {\n      if (!inOl && !inUl) { html += '<ul style=\"margin:8px 0;padding-left:22px;\">'; inUl = true; }\n      else if (inOl) { closeLists(); html += '<ul style=\"margin:8px 0;padding-left:22px;\">'; inUl = true; }\n      html += `<li style=\"margin-bottom:4px;\">${inlineFormat(m[1])}</li>`;\n      continue;\n    }\n\n    closeLists();\n    html += `<p style=\"margin:10px 0;\">${inlineFormat(line)}</p>`;\n  }\n\n  closeLists();\n  return html;\n}\n\nconst bodyHtml = mdToHtml(raw);\n\nconst html = `<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#222222;max-width:680px;\">${bodyHtml}</div>`;\n\nreturn [{ json: { html, flagCount: $('Build Weekly Flags').first().json.flagCount } }];\n"
+      },
+      "id": "74b0b56d-a7f6-4ec1-8caa-30a1a9607317",
+      "name": "Format Weekly Email (Markdown to HTML)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2256,
+        3440
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "you@example.com",
+        "subject": "=Weekly SEO Flags - {{ $('Calculate Weekly Periods').first().json.client_name }} - w/c {{ $('Calculate Weekly Periods').first().json.week_current_start }}",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "33d72ba5-cfd3-4314-a84b-4927bbd13bc2",
+      "name": "Email Me the Weekly Flags",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2480,
+        3440
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your gmailOAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Weekly Flags",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "domain",
+              "displayName": "domain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "week_label",
+              "displayName": "week_label",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "week_start",
+              "displayName": "week_start",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "week_end",
+              "displayName": "week_end",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "raw_summary",
+              "displayName": "raw_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "flags",
+              "displayName": "flags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "flagCount",
+              "displayName": "flagCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "topMovers",
+              "displayName": "topMovers",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "run_date",
+              "displayName": "run_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gsc_clicks_current",
+              "displayName": "gsc_clicks_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gsc_clicks_yoy",
+              "displayName": "gsc_clicks_yoy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gsc_impressions_current",
+              "displayName": "gsc_impressions_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gsc_avg_position_current",
+              "displayName": "gsc_avg_position_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ga4_sessions_current",
+              "displayName": "ga4_sessions_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ga4_leads_current",
+              "displayName": "ga4_leads_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "organic_sessions_current",
+              "displayName": "organic_sessions_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "organic_leads_current",
+              "displayName": "organic_leads_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "accuranker_avg_position",
+              "displayName": "accuranker_avg_position",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "accuranker_top3",
+              "displayName": "accuranker_top3",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "accuranker_top10",
+              "displayName": "accuranker_top10",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "9cf7e81b-6336-4249-9df0-412d44fa3b91",
+      "name": "Log Weekly Snapshot to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2032,
+        3616
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSheetsOAuth2Api"
+        }
+      },
+      "notes": "Pick your real Google Sheets credential here after import - it never carries over from an export. Also fill in the real sheet id (currently a placeholder)."
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "96de99b0-3592-421e-aebf-42b9d7463c0a",
+      "name": "Get Clients",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -144,
+        3168
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSheetsOAuth2Api"
+        }
+      },
+      "notes": "Reads every row from the 'Clients' tab: client_name, domain, ga_property_id, gsc_property. After import: pick your real Google Sheets credential, and check the operation still shows 'Get row(s) in sheet' (n8n sometimes renames this option between versions)."
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "f5fed948-64ef-42c7-a25a-47404a743ff0",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        96,
+        3168
+      ],
+      "notes": "Processes exactly one client fully (through to the email/sheet-log step) before starting the next, so no client's data can ever cross into another's merge nodes. Output 0 = done, output 1 = loop."
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "26456ad2-7622-4fb6-92b5-ffa7588597dd",
+      "name": "Client Done (Weekly)1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        2704,
+        3536
+      ],
+      "notes": "Waits for both this client's email/doc step AND its sheet-log step to finish before moving the loop on to the next client."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Client Done (Weekly)": {
+      "main": [
+        []
+      ]
+    },
+    "Weekly Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Get Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Calculate Weekly Periods",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Weekly Periods": {
+      "main": [
+        [
+          {
+            "node": "GSC Totals - Current Week",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GSC Totals - Same Week Prev Quarter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GSC Totals - Same Week Prev Year",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GA4 - Weekly Metrics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GA4 - Weekly Organic Metrics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - List Domains",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GSC Totals - Current Week": {
+      "main": [
+        [
+          {
+            "node": "Tag GSC Current",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GSC Totals - Same Week Prev Quarter": {
+      "main": [
+        [
+          {
+            "node": "Tag GSC QoQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GSC Totals - Same Week Prev Year": {
+      "main": [
+        [
+          {
+            "node": "Tag GSC YoY",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag GSC Current": {
+      "main": [
+        [
+          {
+            "node": "Merge GSC Totals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag GSC QoQ": {
+      "main": [
+        [
+          {
+            "node": "Merge GSC Totals",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Tag GSC YoY": {
+      "main": [
+        [
+          {
+            "node": "Merge GSC Totals",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "GA4 - Weekly Metrics": {
+      "main": [
+        [
+          {
+            "node": "Merge GA4 Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GA4 - Weekly Organic Metrics": {
+      "main": [
+        [
+          {
+            "node": "Merge GA4 Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Accuranker - List Domains": {
+      "main": [
+        [
+          {
+            "node": "Accuranker - Find Domain ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Find Domain ID": {
+      "main": [
+        [
+          {
+            "node": "Accuranker - Keywords Current Week",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - Keywords Same Week Prev Quarter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - Keywords Same Week Prev Year",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords Current Week": {
+      "main": [
+        [
+          {
+            "node": "Tag Accuranker Current",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords Same Week Prev Quarter": {
+      "main": [
+        [
+          {
+            "node": "Tag Accuranker QoQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords Same Week Prev Year": {
+      "main": [
+        [
+          {
+            "node": "Tag Accuranker YoY",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Accuranker Current": {
+      "main": [
+        [
+          {
+            "node": "Merge Accuranker Snapshots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Accuranker QoQ": {
+      "main": [
+        [
+          {
+            "node": "Merge Accuranker Snapshots",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Tag Accuranker YoY": {
+      "main": [
+        [
+          {
+            "node": "Merge Accuranker Snapshots",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge GSC Totals": {
+      "main": [
+        [
+          {
+            "node": "Merge All Weekly Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge GA4 Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Weekly Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Accuranker Snapshots": {
+      "main": [
+        [
+          {
+            "node": "Merge All Weekly Data",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge All Weekly Data": {
+      "main": [
+        [
+          {
+            "node": "Build Weekly Flags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Weekly Flags": {
+      "main": [
+        [
+          {
+            "node": "Analyse with Claude (Haiku - Weekly)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Weekly Snapshot to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Weekly Email (Markdown to HTML)": {
+      "main": [
+        [
+          {
+            "node": "Email Me the Weekly Flags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Clients": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Me the Weekly Flags": {
+      "main": [
+        [
+          {
+            "node": "Client Done (Weekly)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Weekly Snapshot to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Client Done (Weekly)1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Analyse with Claude (Haiku - Weekly)": {
+      "main": [
+        [
+          {
+            "node": "Format Weekly Email (Markdown to HTML)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Client Done (Weekly)1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

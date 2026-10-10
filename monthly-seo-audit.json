@@ -1,0 +1,2846 @@
+{
+  "name": "Monthly SEO Audit",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c02907f9-e7ed-4757-a2ee-4e0844f02631",
+              "name": "client_name",
+              "value": "={{ $json.client_name }}",
+              "type": "string"
+            },
+            {
+              "id": "04eea1fb-b010-4398-8fff-b7153eccb468",
+              "name": "domain",
+              "value": "={{ $json.domain }}",
+              "type": "string"
+            },
+            {
+              "id": "ccaa48bc-c940-4712-a734-a858b7ba66fb",
+              "name": "ga_property_id",
+              "value": "={{ $json.ga_property_id }}",
+              "type": "string"
+            },
+            {
+              "id": "038f3157-0a19-41ec-a1d1-35b443e47509",
+              "name": "gsc_property",
+              "value": "={{ $json.gsc_property }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        7904,
+        9600
+      ],
+      "id": "6d98b022-eb6f-4648-9b66-ce76e524e073",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "const domain = items[0].json.domain;\nconst gscProperty = items[0].json.gsc_property;\nconst apiKey = \"YOUR_GOOGLE_API_KEY\";\nconst now = new Date();\n\n// YoY — last 3 full months vs same period last year\nconst endDate = new Date(now.getFullYear(), now.getMonth(), 0);\nconst startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 2, 1);\nconst endDateLY = new Date(endDate.getFullYear() - 1, endDate.getMonth(), endDate.getDate());\nconst startDateLY = new Date(startDate.getFullYear() - 1, startDate.getMonth(), startDate.getDate());\n\n// QoQ — previous 3 full months (the 3 months before the current period)\nconst endDateQoQ = new Date(startDate.getFullYear(), startDate.getMonth(), 0);\nconst startDateQoQ = new Date(endDateQoQ.getFullYear(), endDateQoQ.getMonth() - 2, 1);\n\n// MoM — last full month vs the month before\nconst endDateMoM = new Date(now.getFullYear(), now.getMonth(), 0);\nconst startDateMoM = new Date(endDateMoM.getFullYear(), endDateMoM.getMonth(), 1);\nconst endDateMoMPrev = new Date(startDateMoM.getFullYear(), startDateMoM.getMonth(), 0);\nconst startDateMoMPrev = new Date(endDateMoMPrev.getFullYear(), endDateMoMPrev.getMonth(), 1);\n\nconst fmt = (d) => d.toISOString().split('T')[0];\n\nreturn [{\n  json: {\n    client_name: items[0].json.client_name,\n    domain: domain,\n    ga_property_id: items[0].json.ga_property_id,\n    gsc_property: gscProperty,\n    accuranker_domain_id: items[0].json.accuranker_domain_id,\n    inspection_url: gscProperty,\n    pagespeed_mobile_url: \"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=https://\" + domain + \"&strategy=mobile&key=\" + apiKey,\n    pagespeed_desktop_url: \"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=https://\" + domain + \"&strategy=desktop&key=\" + apiKey,\n    baseUrl: \"https://\" + domain,\n\n    // YoY\n    period_a_start: fmt(startDate),\n    period_a_end: fmt(endDate),\n    period_b_start: fmt(startDateLY),\n    period_b_end: fmt(endDateLY),\n\n    // QoQ\n    period_qoq_start: fmt(startDateQoQ),\n    period_qoq_end: fmt(endDateQoQ),\n\n    // MoM\n    period_mom_start: fmt(startDateMoM),\n    period_mom_end: fmt(endDateMoM),\n    period_mom_prev_start: fmt(startDateMoMPrev),\n    period_mom_prev_end: fmt(endDateMoMPrev)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8080,
+        9600
+      ],
+      "id": "9cd54ba1-f1e2-4bcd-b439-6dc060d41798",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.pagespeed_desktop_url}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8240,
+        9904
+      ],
+      "id": "a7f68510-4e7e-46be-af54-ac4f2e8ef076",
+      "name": "PageSpeed Desktop",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-google-search-console.googleSearchConsole",
+      "typeVersion": 1,
+      "position": [
+        8240,
+        10064
+      ],
+      "id": "a39a03c7-0828-426d-a87a-941b56a9c1d6",
+      "name": "List verified sites",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSearchConsoleOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSearchConsoleOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "inspectUrl",
+        "inspectSiteUrlMode": "manual",
+        "inspectSiteUrlManual": "={{ $('Edit Fields').item.json.gsc_property }}",
+        "inspectionUrl": "={{ $('Code in JavaScript').item.json.inspection_url }}"
+      },
+      "type": "n8n-nodes-google-search-console.googleSearchConsole",
+      "typeVersion": 1,
+      "position": [
+        8240,
+        10560
+      ],
+      "id": "c42a41e7-4413-4b93-bc2a-e0373b064ef9",
+      "name": "Url inspection index status",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSearchConsoleOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSearchConsoleOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/webmasters/v3/sites/{{ encodeURIComponent($('Code in JavaScript').item.json.gsc_property) }}/searchAnalytics/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSearchConsoleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startDate\": \"{{ $('Code in JavaScript').item.json.period_a_start }}\",\n  \"endDate\": \"{{ $('Code in JavaScript').item.json.period_a_end }}\",\n  \"dimensions\": [\"query\"],\n  \"rowLimit\": 1000\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8240,
+        10240
+      ],
+      "id": "05f647aa-9780-429b-b8ad-924b0222658f",
+      "name": "GSC Period A",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSearchConsoleOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSearchConsoleOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/webmasters/v3/sites/{{ encodeURIComponent($('Code in JavaScript').item.json.gsc_property) }}/searchAnalytics/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSearchConsoleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startDate\": \"{{ $('Code in JavaScript').item.json.period_b_start }}\",\n  \"endDate\": \"{{ $('Code in JavaScript').item.json.period_b_end }}\",\n  \"dimensions\": [\"query\"],\n  \"rowLimit\": 1000\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8240,
+        10400
+      ],
+      "id": "88ba7480-54d4-4bf8-9b00-63c1ed7e4daa",
+      "name": "GSC Period B",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSearchConsoleOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSearchConsoleOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://analyticsdata.googleapis.com/v1beta/properties/{{ $('Edit Fields').item.json.ga_property_id }}:runReport",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleAnalyticsOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"dateRanges\": [\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_a_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_a_end }}\",\n      \"name\": \"period_a\"\n    },\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_qoq_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_qoq_end }}\",\n      \"name\": \"period_qoq\"\n    },\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_mom_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_mom_end }}\",\n      \"name\": \"period_mom\"\n    },\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_mom_prev_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_mom_prev_end }}\",\n      \"name\": \"period_mom_prev\"\n    }\n  ],\n  \"metrics\": [\n    { \"name\": \"sessions\" },\n    { \"name\": \"userEngagementDuration\" },\n    { \"name\": \"newUsers\" },\n    { \"name\": \"keyEvents\" }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7984,
+        10976
+      ],
+      "id": "18283908-4924-4c77-95ee-434692ec0f8e",
+      "name": "GA4 — Standard Metrics",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleAnalyticsOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleAnalyticsOAuth2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://analyticsdata.googleapis.com/v1beta/properties/{{ $('Edit Fields').item.json.ga_property_id }}:runReport",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleAnalyticsOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"dateRanges\": [\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_a_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_a_end }}\",\n      \"name\": \"period_a\"\n    },\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_qoq_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_qoq_end }}\",\n      \"name\": \"period_qoq\"\n    },\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_mom_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_mom_end }}\",\n      \"name\": \"period_mom\"\n    },\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_mom_prev_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_mom_prev_end }}\",\n      \"name\": \"period_mom_prev\"\n    }\n  ],\n  \"dimensions\": [\n    { \"name\": \"sessionDefaultChannelGroup\" }\n  ],\n  \"metrics\": [\n    { \"name\": \"sessions\" },\n    { \"name\": \"userEngagementDuration\" },\n    { \"name\": \"keyEvents\" },\n    { \"name\": \"engagedSessions\" }\n  ],\n  \"dimensionFilter\": {\n    \"filter\": {\n      \"fieldName\": \"sessionDefaultChannelGroup\",\n      \"stringFilter\": {\n        \"matchType\": \"EXACT\",\n        \"value\": \"Organic Search\"\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7984,
+        11120
+      ],
+      "id": "a8ceee24-0a81-4305-b470-830e80db3e39",
+      "name": "GA4 — Organic Metrics ",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleAnalyticsOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleAnalyticsOAuth2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://analyticsdata.googleapis.com/v1beta/properties/{{ $('Edit Fields').item.json.ga_property_id }}:runReport",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleAnalyticsOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"dateRanges\": [\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_a_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_a_end }}\",\n      \"name\": \"period_a\"\n    },\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_qoq_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_qoq_end }}\",\n      \"name\": \"period_qoq\"\n    },\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_mom_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_mom_end }}\",\n      \"name\": \"period_mom\"\n    },\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_mom_prev_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_mom_prev_end }}\",\n      \"name\": \"period_mom_prev\"\n    }\n  ],\n  \"dimensions\": [\n    { \"name\": \"eventName\" }\n  ],\n  \"metrics\": [\n    { \"name\": \"eventCount\" }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7984,
+        11264
+      ],
+      "id": "5bc859a7-182e-48b2-aba4-41297f2102e8",
+      "name": "GA4 Click Events",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleAnalyticsOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleAnalyticsOAuth2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items_data = $input.all().map(i => i.json);\n\nconst getMetric = (rows, period, metricIndex) => {\n  const row = rows.find(r => r.dimensionValues.some(d => d.value === period));\n  return row ? parseFloat(row.metricValues[metricIndex].value) : 0;\n};\n\nconst getMetricByDim = (rows, dimValue, period, metricIndex) => {\n  const row = rows.find(r =>\n    r.dimensionValues.some(d => d.value === dimValue) &&\n    r.dimensionValues.some(d => d.value === period)\n  );\n  return row ? parseFloat(row.metricValues[metricIndex].value) : 0;\n};\n\nconst allStandard = items_data.filter(i => i.metricHeaders?.some(h => h.name === 'newUsers'));\nconst allOrganic = items_data.filter(i => \n  i.metricHeaders?.some(h => h.name === 'sessions') && \n  i.metricHeaders?.some(h => h.name === 'userEngagementDuration') &&\n  !i.metricHeaders?.some(h => h.name === 'newUsers')\n);\nconst allClicks = items_data.filter(i => i.metricHeaders?.some(h => h.name === 'eventCount'));\n\nconst hasPeriodB = (item) => item.rows?.some(r => r.dimensionValues.some(d => d.value === 'period_b'));\n\nconst standardYoY = allStandard.find(i => hasPeriodB(i)) || {};\nconst standardQMM = allStandard.find(i => !hasPeriodB(i)) || {};\nconst organicYoY = allOrganic.find(i => hasPeriodB(i)) || {};\nconst organicQMM = allOrganic.find(i => !hasPeriodB(i)) || {};\nconst clicksYoY = allClicks.find(i => hasPeriodB(i)) || {};\nconst clicksQMM = allClicks.find(i => !hasPeriodB(i)) || {};\n\nconst sYoY = standardYoY.rows || [];\nconst sQMM = standardQMM.rows || [];\nconst oYoY = organicYoY.rows || [];\nconst oQMM = organicQMM.rows || [];\nconst cYoY = clicksYoY.rows || [];\nconst cQMM = clicksQMM.rows || [];\n\n// Standard — YoY\nconst sessions_a = getMetric(sYoY, 'period_a', 0);\nconst sessions_b = getMetric(sYoY, 'period_b', 0);\nconst engagementDuration_a = getMetric(sYoY, 'period_a', 1);\nconst engagementDuration_b = getMetric(sYoY, 'period_b', 1);\nconst newUsers_a = getMetric(sYoY, 'period_a', 2);\nconst newUsers_b = getMetric(sYoY, 'period_b', 2);\nconst keyEvents_a = getMetric(sYoY, 'period_a', 3);\nconst keyEvents_b = getMetric(sYoY, 'period_b', 3);\n\n// Standard — QoQ\nconst sessions_qoq = getMetric(sQMM, 'period_qoq', 0);\nconst engagementDuration_qoq = getMetric(sQMM, 'period_qoq', 1);\nconst newUsers_qoq = getMetric(sQMM, 'period_qoq', 2);\nconst keyEvents_qoq = getMetric(sQMM, 'period_qoq', 3);\n\n// Standard — MoM\nconst sessions_mom = getMetric(sQMM, 'period_mom', 0);\nconst sessions_mom_prev = getMetric(sQMM, 'period_mom_prev', 0);\nconst engagementDuration_mom = getMetric(sQMM, 'period_mom', 1);\nconst engagementDuration_mom_prev = getMetric(sQMM, 'period_mom_prev', 1);\nconst newUsers_mom = getMetric(sQMM, 'period_mom', 2);\nconst newUsers_mom_prev = getMetric(sQMM, 'period_mom_prev', 2);\nconst keyEvents_mom = getMetric(sQMM, 'period_mom', 3);\nconst keyEvents_mom_prev = getMetric(sQMM, 'period_mom_prev', 3);\n\n// Organic — YoY\nconst organicSessions_a = getMetricByDim(oYoY, 'Organic Search', 'period_a', 0);\nconst organicSessions_b = getMetricByDim(oYoY, 'Organic Search', 'period_b', 0);\nconst organicEngagement_a = getMetricByDim(oYoY, 'Organic Search', 'period_a', 1);\nconst organicEngagement_b = getMetricByDim(oYoY, 'Organic Search', 'period_b', 1);\nconst organicEngagedSessions_a = getMetricByDim(oYoY, 'Organic Search', 'period_a', 3);\nconst organicEngagedSessions_b = getMetricByDim(oYoY, 'Organic Search', 'period_b', 3);\nconst organicEngagementRate_a = organicSessions_a > 0 ? ((organicEngagedSessions_a / organicSessions_a) * 100).toFixed(1) : 0;\nconst organicEngagementRate_b = organicSessions_b > 0 ? ((organicEngagedSessions_b / organicSessions_b) * 100).toFixed(1) : 0;\n\n// *** Organic Key Events — YoY ***\nconst organicKeyEvents_a = getMetricByDim(oYoY, 'Organic Search', 'period_a', 2);\nconst organicKeyEvents_b = getMetricByDim(oYoY, 'Organic Search', 'period_b', 2);\n\n// Organic — QoQ\nconst organicSessions_qoq = getMetricByDim(oQMM, 'Organic Search', 'period_qoq', 0);\nconst organicEngagement_qoq = getMetricByDim(oQMM, 'Organic Search', 'period_qoq', 1);\nconst organicEngagedSessions_qoq = getMetricByDim(oQMM, 'Organic Search', 'period_qoq', 3);\nconst organicEngagementRate_qoq = organicSessions_qoq > 0 ? ((organicEngagedSessions_qoq / organicSessions_qoq) * 100).toFixed(1) : 0;\n\n// *** Organic Key Events — QoQ ***\nconst organicKeyEvents_qoq = getMetricByDim(oQMM, 'Organic Search', 'period_qoq', 2);\n\n// Organic — MoM\nconst organicSessions_mom = getMetricByDim(oQMM, 'Organic Search', 'period_mom', 0);\nconst organicSessions_mom_prev = getMetricByDim(oQMM, 'Organic Search', 'period_mom_prev', 0);\nconst organicEngagement_mom = getMetricByDim(oQMM, 'Organic Search', 'period_mom', 1);\nconst organicEngagement_mom_prev = getMetricByDim(oQMM, 'Organic Search', 'period_mom_prev', 1);\nconst organicEngagedSessions_mom = getMetricByDim(oQMM, 'Organic Search', 'period_mom', 3);\nconst organicEngagedSessions_mom_prev = getMetricByDim(oQMM, 'Organic Search', 'period_mom_prev', 3);\nconst organicEngagementRate_mom = organicSessions_mom > 0 ? ((organicEngagedSessions_mom / organicSessions_mom) * 100).toFixed(1) : 0;\nconst organicEngagementRate_mom_prev = organicSessions_mom_prev > 0 ? ((organicEngagedSessions_mom_prev / organicSessions_mom_prev) * 100).toFixed(1) : 0;\n\n// *** Organic Key Events — MoM ***\nconst organicKeyEvents_mom = getMetricByDim(oQMM, 'Organic Search', 'period_mom', 2);\nconst organicKeyEvents_mom_prev = getMetricByDim(oQMM, 'Organic Search', 'period_mom_prev', 2);\n\n// Clicks — YoY\nconst phoneClicks_a = getMetricByDim(cYoY, 'phone_number_click', 'period_a', 0);\nconst phoneClicks_b = getMetricByDim(cYoY, 'phone_number_click', 'period_b', 0);\nconst emailClicks_a = getMetricByDim(cYoY, 'email_address_click', 'period_a', 0);\nconst emailClicks_b = getMetricByDim(cYoY, 'email_address_click', 'period_b', 0);\nconst whatsappClicks_a = getMetricByDim(cYoY, 'WhatsApp_Button_Click', 'period_a', 0) + getMetricByDim(cYoY, 'Whatsapp_click', 'period_a', 0);\nconst whatsappClicks_b = getMetricByDim(cYoY, 'WhatsApp_Button_Click', 'period_b', 0) + getMetricByDim(cYoY, 'Whatsapp_click', 'period_b', 0);\n\n// Clicks — QoQ\nconst phoneClicks_qoq = getMetricByDim(cQMM, 'phone_number_click', 'period_qoq', 0);\nconst emailClicks_qoq = getMetricByDim(cQMM, 'email_address_click', 'period_qoq', 0);\nconst whatsappClicks_qoq = getMetricByDim(cQMM, 'WhatsApp_Button_Click', 'period_qoq', 0) + getMetricByDim(cQMM, 'Whatsapp_click', 'period_qoq', 0);\n\n// Clicks — MoM\nconst phoneClicks_mom = getMetricByDim(cQMM, 'phone_number_click', 'period_mom', 0);\nconst phoneClicks_mom_prev = getMetricByDim(cQMM, 'phone_number_click', 'period_mom_prev', 0);\nconst emailClicks_mom = getMetricByDim(cQMM, 'email_address_click', 'period_mom', 0);\nconst emailClicks_mom_prev = getMetricByDim(cQMM, 'email_address_click', 'period_mom_prev', 0);\nconst whatsappClicks_mom = getMetricByDim(cQMM, 'WhatsApp_Button_Click', 'period_mom', 0) + getMetricByDim(cQMM, 'Whatsapp_click', 'period_mom', 0);\nconst whatsappClicks_mom_prev = getMetricByDim(cQMM, 'WhatsApp_Button_Click', 'period_mom_prev', 0) + getMetricByDim(cQMM, 'Whatsapp_click', 'period_mom_prev', 0);\n\n// Derived metrics\nconst organicPct_a = sessions_a > 0 ? ((organicSessions_a / sessions_a) * 100).toFixed(1) : 0;\nconst organicPct_b = sessions_b > 0 ? ((organicSessions_b / sessions_b) * 100).toFixed(1) : 0;\nconst organicPct_qoq = sessions_qoq > 0 ? ((organicSessions_qoq / sessions_qoq) * 100).toFixed(1) : 0;\nconst organicPct_mom = sessions_mom > 0 ? ((organicSessions_mom / sessions_mom) * 100).toFixed(1) : 0;\nconst organicPct_mom_prev = sessions_mom_prev > 0 ? ((organicSessions_mom_prev / sessions_mom_prev) * 100).toFixed(1) : 0;\n\nconst avgEngagementTime_a = sessions_a > 0 ? (engagementDuration_a / sessions_a).toFixed(0) : 0;\nconst avgEngagementTime_b = sessions_b > 0 ? (engagementDuration_b / sessions_b).toFixed(0) : 0;\nconst avgEngagementTime_qoq = sessions_qoq > 0 ? (engagementDuration_qoq / sessions_qoq).toFixed(0) : 0;\nconst avgEngagementTime_mom = sessions_mom > 0 ? (engagementDuration_mom / sessions_mom).toFixed(0) : 0;\nconst avgEngagementTime_mom_prev = sessions_mom_prev > 0 ? (engagementDuration_mom_prev / sessions_mom_prev).toFixed(0) : 0;\n\nconst avgOrganicEngagementTime_a = organicSessions_a > 0 ? (organicEngagement_a / organicSessions_a).toFixed(0) : 0;\nconst avgOrganicEngagementTime_b = organicSessions_b > 0 ? (organicEngagement_b / organicSessions_b).toFixed(0) : 0;\nconst avgOrganicEngagementTime_qoq = organicSessions_qoq > 0 ? (organicEngagement_qoq / organicSessions_qoq).toFixed(0) : 0;\nconst avgOrganicEngagementTime_mom = organicSessions_mom > 0 ? (organicEngagement_mom / organicSessions_mom).toFixed(0) : 0;\nconst avgOrganicEngagementTime_mom_prev = organicSessions_mom_prev > 0 ? (organicEngagement_mom_prev / organicSessions_mom_prev).toFixed(0) : 0;\n\nconst pct = (a, b) => b > 0 ? (((a - b) / b) * 100).toFixed(1) : null;\n\n\nreturn [{\n  json: {\n    // Sessions\n    sessions_a, sessions_b, sessions_change: pct(sessions_a, sessions_b),\n    sessions_qoq, sessions_qoq_change: pct(sessions_a, sessions_qoq),\n    sessions_mom, sessions_mom_prev, sessions_mom_change: pct(sessions_mom, sessions_mom_prev),\n\n    // New users\n    newUsers_a, newUsers_b, newUsers_change: pct(newUsers_a, newUsers_b),\n    newUsers_qoq, newUsers_qoq_change: pct(newUsers_a, newUsers_qoq),\n    newUsers_mom, newUsers_mom_prev, newUsers_mom_change: pct(newUsers_mom, newUsers_mom_prev),\n\n    // Avg engagement time\n    avgEngagementTime_a, avgEngagementTime_b, avgEngagementTime_change: pct(avgEngagementTime_a, avgEngagementTime_b),\n    avgEngagementTime_qoq, avgEngagementTime_qoq_change: pct(avgEngagementTime_a, avgEngagementTime_qoq),\n    avgEngagementTime_mom, avgEngagementTime_mom_prev, avgEngagementTime_mom_change: pct(avgEngagementTime_mom, avgEngagementTime_mom_prev),\n\n    // Key events\n    keyEvents_a, keyEvents_b, keyEvents_change: pct(keyEvents_a, keyEvents_b),\n    keyEvents_qoq, keyEvents_qoq_change: pct(keyEvents_a, keyEvents_qoq),\n    keyEvents_mom, keyEvents_mom_prev, keyEvents_mom_change: pct(keyEvents_mom, keyEvents_mom_prev),\n\n    // Organic sessions\n    organicSessions_a, organicSessions_b, organicSessions_change: pct(organicSessions_a, organicSessions_b),\n    organicSessions_qoq, organicSessions_qoq_change: pct(organicSessions_a, organicSessions_qoq),\n    organicSessions_mom, organicSessions_mom_prev, organicSessions_mom_change: pct(organicSessions_mom, organicSessions_mom_prev),\n\n    // Organic %\n    organicPct_a, organicPct_b,\n    organicPct_qoq, organicPct_mom, organicPct_mom_prev,\n\n    // Avg organic engagement time\n    avgOrganicEngagementTime_a, avgOrganicEngagementTime_b, avgOrganicEngagementTime_change: pct(avgOrganicEngagementTime_a, avgOrganicEngagementTime_b),\n    avgOrganicEngagementTime_qoq, avgOrganicEngagementTime_qoq_change: pct(avgOrganicEngagementTime_a, avgOrganicEngagementTime_qoq),\n    avgOrganicEngagementTime_mom, avgOrganicEngagementTime_mom_prev, avgOrganicEngagementTime_mom_change: pct(avgOrganicEngagementTime_mom, avgOrganicEngagementTime_mom_prev),\n\n    // Organic engagement rate\n    organicEngagementRate_a, organicEngagementRate_b,\n    organicEngagementRate_change: pct(organicEngagementRate_a, organicEngagementRate_b),\n    organicEngagementRate_qoq,\n    organicEngagementRate_qoq_change: pct(organicEngagementRate_a, organicEngagementRate_qoq),\n    organicEngagementRate_mom, organicEngagementRate_mom_prev,\n    organicEngagementRate_mom_change: pct(organicEngagementRate_mom, organicEngagementRate_mom_prev),\n\n    // *** Organic key events ***\n    organicKeyEvents_a, organicKeyEvents_b, organicKeyEvents_change: pct(organicKeyEvents_a, organicKeyEvents_b),\n    organicKeyEvents_qoq, organicKeyEvents_qoq_change: pct(organicKeyEvents_a, organicKeyEvents_qoq),\n    organicKeyEvents_mom, organicKeyEvents_mom_prev, organicKeyEvents_mom_change: pct(organicKeyEvents_mom, organicKeyEvents_mom_prev),\n\n    // WhatsApp clicks\nwhatsappClicks_a, whatsappClicks_b, whatsappClicks_change: pct(whatsappClicks_a, whatsappClicks_b),\nwhatsappClicks_qoq, whatsappClicks_qoq_change: pct(whatsappClicks_a, whatsappClicks_qoq),\nwhatsappClicks_mom, whatsappClicks_mom_prev, whatsappClicks_mom_change: pct(whatsappClicks_mom, whatsappClicks_mom_prev),\n\n    // Phone clicks\n    phoneClicks_a, phoneClicks_b, phoneClicks_change: pct(phoneClicks_a, phoneClicks_b),\n    phoneClicks_qoq, phoneClicks_qoq_change: pct(phoneClicks_a, phoneClicks_qoq),\n    phoneClicks_mom, phoneClicks_mom_prev, phoneClicks_mom_change: pct(phoneClicks_mom, phoneClicks_mom_prev),\n\n    // Email clicks\n    emailClicks_a, emailClicks_b, emailClicks_change: pct(emailClicks_a, emailClicks_b),\n    emailClicks_qoq, emailClicks_qoq_change: pct(emailClicks_a, emailClicks_qoq),\n    emailClicks_mom, emailClicks_mom_prev, emailClicks_mom_change: pct(emailClicks_mom, emailClicks_mom_prev)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8656,
+        11248
+      ],
+      "id": "5b017119-63ef-4377-9542-f2488d455524",
+      "name": "GA4 Parse Code node"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\nconst homepageSchemaItem = allItems.find(i => i.json.record_type === 'homepage_schema');\nif (!homepageSchemaItem) return [{ json: { error: 'No homepage_schema item found', items: allItems.length, keys: allItems.map(i => Object.keys(i.json)) }}];\n\nconst locationsRaw = allItems.find(i => i.json.locations !== undefined)?.json?.locations;\nconst locationsItem = Array.isArray(locationsRaw)\n  ? locationsRaw\n  : locationsRaw && typeof locationsRaw === 'object'\n    ? Object.values(locationsRaw)\n    : [];\n\n// LibreCrawl has already parsed JSON-LD and schema.org markup for every page\n// it crawled (raw HTML isn't available from its API at all), so use that\n// directly rather than re-extracting from HTML with regex. Both formats are\n// included, nothing is filtered out at this stage.\nconst schemas = [...(homepageSchemaItem.json.json_ld || []), ...(homepageSchemaItem.json.schema_org || [])];\n\n// Flatten @graph arrays\nconst allSchemas = [];\nfor (const s of schemas) {\n  if (s['@graph']) {\n    allSchemas.push(...s['@graph']);\n  } else {\n    allSchemas.push(s);\n  }\n}\n\n// Find the business schema. Rather than guessing by @type name (which varies a\n// lot between themes/plugins, Yoast commonly outputs \"Organization\" rather than\n// \"LocalBusiness\", for example), look for whichever schema actually carries\n// business-identifying fields, regardless of what it's labelled as. No types\n// are excluded from consideration.\nconst localBusiness =\n  allSchemas.find((s) => !!(s.address || s.telephone || s.openingHours || s.openingHoursSpecification || s.geo)) ||\n  allSchemas.find((s) => {\n    const type = s['@type'] || '';\n    const types = Array.isArray(type) ? type : [type];\n    return types.includes('LocalBusiness') || types.includes('Organization');\n  }) ||\n  null;\n\nconst result = {\n  schema_found: schemas.length > 0,\n  schema_count: schemas.length,\n  schema_types: allSchemas.map(s => s['@type']).filter(Boolean),\n  local_business_schema: !!localBusiness,\n  local_business_type: localBusiness?.['@type'] || null,\n  has_name: !!localBusiness?.name,\n  has_address: !!localBusiness?.address,\n  has_telephone: !!localBusiness?.telephone,\n  has_opening_hours: !!(localBusiness?.openingHours || localBusiness?.openingHoursSpecification),\n  has_geo: !!localBusiness?.geo,\n  has_url: !!localBusiness?.url,\n  has_image: !!(localBusiness?.image || localBusiness?.logo),\n  schema_issues: [],\n  gbp_mismatches: []\n};\n\nconst lb = localBusiness || {};\nconst addressObj = lb.address || {};\nconst address = typeof addressObj === 'string' ? addressObj : [\n  addressObj.streetAddress,\n  addressObj.addressLocality,\n  addressObj.addressRegion,\n  addressObj.postalCode,\n  addressObj.addressCountry\n].filter(Boolean).join(', ');\n\nconst openingHoursSpec = lb.openingHoursSpecification || [];\nconst hoursFormatted = Array.isArray(openingHoursSpec) ? openingHoursSpec.map(h => {\n  const days = Array.isArray(h.dayOfWeek)\n    ? h.dayOfWeek.map(d => d.replace('http://schema.org/', '')).join(', ')\n    : (h.dayOfWeek || '').replace('http://schema.org/', '');\n  return `${days}: ${h.opens || '?'} - ${h.closes || '?'}`;\n}).join(' | ') : lb.openingHours || '';\n\nresult.business_name          = lb.name       || null;\nresult.business_address       = address       || null;\nresult.business_phone         = lb.telephone  || null;\nresult.business_opening_hours = hoursFormatted || null;\nresult.business_logo          = lb.logo || lb.image || null;\n\n// Standard schema issues\nif (!result.schema_found) result.schema_issues.push('no_schema_found');\nif (!result.local_business_schema) result.schema_issues.push('no_local_business_schema');\nif (result.local_business_schema) {\n  if (!result.has_name)          result.schema_issues.push('missing_name');\n  if (!result.has_address)       result.schema_issues.push('missing_address');\n  if (!result.has_telephone)     result.schema_issues.push('missing_telephone');\n  if (!result.has_opening_hours) result.schema_issues.push('missing_opening_hours');\n  if (!result.has_geo)           result.schema_issues.push('missing_geo');\n}\n\n// GBP cross-check\nif (locationsItem.length > 0 && localBusiness) {\n\n  const schemaHost = (() => {\n    try { return new URL(lb.url || '').hostname.replace('www.', ''); }\n    catch { return ''; }\n  })();\n\n  const inputDomain = allItems.find(i => i.json.domain !== undefined)?.json?.domain || '';\n  \nconst schemaName = lb.name || '';\n\nconst gbpLocation = locationsItem.find(loc => {\n  if (!loc) return false;\n  // Match by business name (most reliable when URL parsing fails)\n  if (schemaName && loc.title) {\n    const normName = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');\n    if (normName(loc.title) === normName(schemaName)) return true;\n  }\n  // Match by URL string contains\n  if (loc.websiteUri) {\n    const uri = decodeURIComponent(loc.websiteUri);\n    try {\n      const locHost = new URL(uri).hostname.replace('www.', '');\n      if (locHost && locHost === locHost) return false; // placeholder\n      return false;\n    } catch {\n      // Try simple string match on domain fragment\n      const domainMatch = uri.match(/https?:\\/\\/(?:www\\.)?([^/?]+)/);\n      const locDomain = domainMatch?.[1] || '';\n      const schemaDomain = (lb.url || '').match(/https?:\\/\\/(?:www\\.)?([^/?]+)/)?.[1] || '';\n      if (locDomain && schemaDomain && locDomain === schemaDomain) return true;\n    }\n  }\n  return false;\n}) || null;\n\n  if (gbpLocation) {\n    function norm(str) {\n      return (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();\n    }\n\n    // Business name\n    const gbpName    = gbpLocation.title || '';\n    const schemaName = lb.name || '';\n    if (gbpName && schemaName && norm(gbpName) !== norm(schemaName)) {\n      result.gbp_mismatches.push({\n        field: 'business_name',\n        gbp: gbpName,\n        schema: schemaName,\n        note: 'Name differs between GBP and schema'\n      });\n    }\n\n    // Phone\n    const gbpPhone    = (gbpLocation.phoneNumbers?.primaryPhone || '').replace(/\\D/g, '');\n    const schemaPhone = (lb.telephone || '').replace(/\\D/g, '');\n    if (gbpPhone && schemaPhone && gbpPhone !== schemaPhone) {\n      result.gbp_mismatches.push({\n        field: 'phone',\n        gbp: gbpLocation.phoneNumbers?.primaryPhone,\n        schema: lb.telephone,\n        note: 'Phone number differs between GBP and schema'\n      });\n    }\n\n    // Website URL\n    function cleanUrl(url) {\n  try {\n    const decoded = decodeURIComponent((url || '').replace(/\\+/g, ' '));\n    const u = new URL(decoded);\n    return u.hostname.replace('www.', '').toLowerCase();\n  } catch {\n    const match = (url || '').match(/https?:\\/\\/(?:www\\.)?([^/?]+)/);\n    return match?.[1]?.toLowerCase() || '';\n  }\n}\n    const gbpUrl     = cleanUrl(gbpLocation.websiteUri || '');\n    const schemaUrl2 = cleanUrl(lb.url || '');\n    if (gbpUrl && schemaUrl2 && gbpUrl !== schemaUrl2) {\n      result.gbp_mismatches.push({\n        field: 'website_url',\n        gbp: gbpLocation.websiteUri,\n        schema: lb.url,\n        note: 'Website URL differs between GBP and schema (ignoring UTM params)'\n      });\n    }\n\n    // Postcode\n    const gbpPostcode    = norm(gbpLocation.storefrontAddress?.postalCode || '');\n    const schemaPostcode = norm(addressObj.postalCode || '');\n    if (gbpPostcode && schemaPostcode && gbpPostcode !== schemaPostcode) {\n      result.gbp_mismatches.push({\n        field: 'postcode',\n        gbp: gbpLocation.storefrontAddress?.postalCode,\n        schema: addressObj.postalCode,\n        note: 'Postcode differs between GBP and schema'\n      });\n    }\n\n    // Town/city\n    const gbpLocality    = norm(gbpLocation.storefrontAddress?.locality || '');\n    const schemaLocality = norm(addressObj.addressLocality || '');\n    if (gbpLocality && schemaLocality && gbpLocality !== schemaLocality) {\n      result.gbp_mismatches.push({\n        field: 'address_locality',\n        gbp: gbpLocation.storefrontAddress?.locality,\n        schema: addressObj.addressLocality,\n        note: 'Town/city differs between GBP and schema'\n      });\n    }\n\n    result.gbp_schema_match  = result.gbp_mismatches.length === 0;\n    result.gbp_checked        = true;\n    result.gbp_location_title = gbpName;\n\n  } else {\n    result.gbp_checked      = false;\n    result.gbp_schema_match = null;\n    result.gbp_mismatches   = [{ note: 'No matching GBP location found for this domain' }];\n  }\n\n} else {\n  result.gbp_checked      = false;\n  result.gbp_schema_match = null;\n  result.gbp_mismatches   = locationsItem.length === 0\n    ? [{ note: 'GBP location data not available for comparison' }]\n    : [{ note: 'No LocalBusiness schema found to compare against' }];\n}\n\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8480,
+        11856
+      ],
+      "id": "931ace92-ca8e-428a-9846-10bcedcd050f",
+      "name": " Schema Checker"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.pagespeed_mobile_url}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8240,
+        9744
+      ],
+      "id": "9589a94d-8204-4198-93ea-50efcbc0278a",
+      "name": "PageSpeed Mobile",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "numberInputs": 8
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        10032,
+        10928
+      ],
+      "id": "41a3f3a7-3b16-4a57-b747-1721e7fdeede",
+      "name": "Merge All Data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://docs.googleapis.com/v1/documents",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDocsOAuth2Api",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ $('Edit Fields').first().json.client_name }} SEO Audit {{ DateTime.now().toFormat('MMMM yyyy') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10432,
+        11072
+      ],
+      "id": "da859974-c15a-4855-914c-75c7b699d3d6",
+      "name": "Create Google Doc",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleDocsOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://docs.googleapis.com/v1/documents/{{ $json.documentId }}:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDocsOAuth2Api",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "requests",
+              "value": "={{ $('Build Doc Content').first().json.requests }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10624,
+        11072
+      ],
+      "id": "577e1d55-85c5-4833-b965-9ba7d0d18ca6",
+      "name": "Write to Google Doc",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleDocsOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// --- On-page SEO crawl data (flat row-per-page / row-per-issue format from the crawl code node) ---\nconst pageSummaries = items.filter(i => i.json.record_type === 'page_summary').map(i => i.json);\nconst crawlIssues   = items.filter(i => i.json.record_type === 'issue').map(i => i.json);\n\nconst pagesCrawled    = pageSummaries.length;\nconst pagesWithIssues = pageSummaries.filter(p => p.has_issues).length;\n\nfunction issuesOfType(type) {\n  return crawlIssues.filter(i => i.issue === type);\n}\n\nconst schema = items.find(i => i.json.local_business_schema !== undefined)?.json || {};\nconst ga4 = items.find(i => i.json.sessions_a !== undefined)?.json || {};\nconst gscTotalsItems = items.filter(i => \n  i.json.rows?.[0]?.impressions !== undefined && \n  i.json.rows?.[0]?.ctr !== undefined && \n  !i.json.rows?.[0]?.keys\n);\n\nconst findGscTotals = (period) =>\n  items.find(i => i.json.gsc_period === period)?.json?.rows?.[0] || {};\n\nconst gscTotalsA       = findGscTotals('current');\nconst gscTotalsB       = findGscTotals('yoy');\nconst gscTotalsQoQ     = findGscTotals('qoq');\nconst gscTotalsMoM     = findGscTotals('mom');\nconst gscTotalsMoMPrev = findGscTotals('mom_prev');\nconst gscA    = items.find(i => i.json.rows !== undefined && i.json.rows?.[0]?.keys !== undefined)?.json || {};\nconst gscRows = gscA.rows || [];\nconst speedMobile  = items.find(i => i.json.lighthouseResult !== undefined)?.json || {};\nconst speedDesktop = items.filter(i => i.json.lighthouseResult !== undefined)?.[1]?.json || {};\n\nconst accurankerRaw = items.find(i => i.json.desktop !== undefined && i.json.mobile !== undefined)?.json || {};\nconst accDesktop = accurankerRaw.desktop || {};\nconst accMobile  = accurankerRaw.mobile  || {};\n\n// GBP Performance API raw response\nconst gbpItem = items.find(i => i.json.gbp_raw !== undefined);\nconst gbpApiRaw = gbpItem ? JSON.parse(gbpItem.json.gbp_raw) : {};\n\n// Calculate periods dynamically from last 3 complete months\nfunction getLastCompleteMonthEnd() {\n  const now = new Date();\n  return new Date(now.getFullYear(), now.getMonth(), 0); // last day of previous month\n}\n\nfunction monthStart(date) {\n  return new Date(date.getFullYear(), date.getMonth(), 1);\n}\n\nfunction monthEnd(date) {\n  return new Date(date.getFullYear(), date.getMonth() + 1, 0);\n}\n\nfunction addMonths(date, n) {\n  return new Date(date.getFullYear(), date.getMonth() + n, 1);\n}\n\nfunction toISO(date) {\n  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;\n}\n\n// Last complete month = month before current\nconst m0End   = getLastCompleteMonthEnd();           // Feb 28 2026\nconst m0Start = monthStart(m0End);                   // Feb 1 2026\nconst m1End   = monthEnd(addMonths(m0End, -1));      // Jan 31 2026\nconst m1Start = monthStart(addMonths(m0End, -1));    // Jan 1 2026\nconst m2End   = monthEnd(addMonths(m0End, -2));      // Dec 31 2025\nconst m2Start = monthStart(addMonths(m0End, -2));    // Dec 1 2025\n\n// Current period (a) = last 3 complete months\nconst aStart = m2Start;   // Dec 1 2025\nconst aEnd   = m0End;     // Feb 28 2026\n\n// YoY prior = same 3 months one year earlier\nconst bStart = new Date(aStart.getFullYear()-1, aStart.getMonth(), aStart.getDate());\nconst bEnd   = new Date(aEnd.getFullYear()-1,   aEnd.getMonth(),   aEnd.getDate());\n\n// QoQ prior = 3 months before current period\nconst qoqEnd   = monthEnd(addMonths(m2End, -1));     // Nov 30 2025\nconst qoqStart = monthStart(addMonths(m2Start, -3)); // Sep 1 2025\n\n// MoM: current = last complete month, prior = month before that\nconst gbpPeriods = {\n  a_start:        toISO(aStart),      // 2025-12-01\n  a_end:          toISO(aEnd),        // 2026-02-28\n  b_start:        toISO(bStart),      // 2024-12-01\n  b_end:          toISO(bEnd),        // 2025-02-28\n  qoq_start:      toISO(qoqStart),    // 2025-09-01\n  qoq_end:        toISO(qoqEnd),      // 2025-11-30\n  mom_start:      toISO(m0Start),     // 2026-02-01\n  mom_end:        toISO(m0End),       // 2026-02-28\n  mom_prev_start: toISO(m1Start),     // 2026-01-01\n  mom_prev_end:   toISO(m1End),       // 2026-01-31\n};\n\nconst clientName = $('Edit Fields').first().json.client_name || 'Client';\nconst domain     = $('Edit Fields').first().json.domain || '';\nconst date       = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });\n\nfunction pctChange(current, prior) {\n  if (prior === null || prior === undefined || prior === 0) return null;\n  const change = ((current - prior) / prior) * 100;\n  return (change >= 0 ? '+' : '') + change.toFixed(1) + '%';\n}\n\nfunction buildRankingsSection(acc, deviceLabel) {\n  const lines = [];\n  const accPeriod  = acc.period_label || 'Initial';\n  const hasPrior   = acc.has_prior_data === true;\n  const initialDate = acc.initial_date ? ` (since ${acc.initial_date})` : '';\n\n  function compare(current, prior) {\n    if (!hasPrior || prior === null || prior === undefined) return `${current ?? 'N/A'}`;\n    const pct = pctChange(current, prior);\n    return `${current} vs ${prior} ${accPeriod}${initialDate}${pct ? ' (' + pct + ')' : ''}`;\n  }\n\n  lines.push(`\\n=== ${deviceLabel} ===\\n`);\n  lines.push(`--- ${accPeriod}${initialDate}\\n`);\n  lines.push(`Total Keywords Tracked: ${compare(acc.total_keywords, acc.total_keywords_prior)}\\n`);\n  lines.push(`Average Rank: ${compare(acc.average_rank, acc.average_rank_prior)}\\n`);\n  lines.push(`Positions 1-3: ${compare(acc.pos_1_3, acc.pos_1_3_prior)}\\n`);\n  lines.push(`Positions 4-10: ${compare(acc.pos_4_10, acc.pos_4_10_prior)}\\n`);\n  lines.push(`Positions 11-20: ${compare(acc.pos_11_20, acc.pos_11_20_prior)}\\n`);\n  lines.push(`Positions 21+: ${acc.pos_21_plus || 0}\\n`);\n  lines.push(`Above the Fold: ${compare(acc.above_the_fold, acc.above_the_fold_prior)}\\n`);\n  lines.push(`AI Share of Voice: ${compare(acc.ai_share_of_voice, acc.ai_share_of_voice_prior)}\\n`);\n  lines.push(`AI Traffic Value: ${compare(acc.ai_traffic_value, acc.ai_traffic_value_prior)}\\n\\n`);\n\n  const qoq = acc.qoq || {};\n  if (qoq.has_prior_data) {\n    lines.push(`--- Quarter on Quarter\\n`);\n    lines.push(`Total Keywords Tracked: ${qoq.total_keywords} vs ${qoq.total_keywords_prior} QoQ (${pctChange(qoq.total_keywords, qoq.total_keywords_prior) || 'N/A'})\\n`);\n    lines.push(`Average Rank: ${qoq.average_rank} vs ${qoq.average_rank_prior} QoQ (${pctChange(qoq.average_rank, qoq.average_rank_prior) || 'N/A'})\\n`);\n    lines.push(`Positions 1-3: ${qoq.pos_1_3} vs ${qoq.pos_1_3_prior} QoQ (${pctChange(qoq.pos_1_3, qoq.pos_1_3_prior) || 'N/A'})\\n`);\n    lines.push(`Positions 4-10: ${qoq.pos_4_10} vs ${qoq.pos_4_10_prior} QoQ (${pctChange(qoq.pos_4_10, qoq.pos_4_10_prior) || 'N/A'})\\n`);\n    lines.push(`Positions 11-20: ${qoq.pos_11_20} vs ${qoq.pos_11_20_prior} QoQ (${pctChange(qoq.pos_11_20, qoq.pos_11_20_prior) || 'N/A'})\\n`);\n    lines.push(`Positions 21+: ${qoq.pos_21_plus || 0}\\n`);\n    lines.push(`Above the Fold: ${qoq.above_the_fold} vs ${qoq.above_the_fold_prior} QoQ (${pctChange(qoq.above_the_fold, qoq.above_the_fold_prior) || 'N/A'})\\n`);\n    lines.push(`AI Share of Voice: ${qoq.ai_share_of_voice} vs ${qoq.ai_share_of_voice_prior} QoQ (${pctChange(qoq.ai_share_of_voice, qoq.ai_share_of_voice_prior) || 'N/A'})\\n`);\n    lines.push(`AI Traffic Value: ${qoq.ai_traffic_value} vs ${qoq.ai_traffic_value_prior} QoQ (${pctChange(qoq.ai_traffic_value, qoq.ai_traffic_value_prior) || 'N/A'})\\n\\n`);\n  }\n\n  const mom = acc.mom || {};\n  if (mom.has_prior_data) {\n    lines.push(`--- Month on Month\\n`);\n    lines.push(`Total Keywords Tracked: ${mom.total_keywords} vs ${mom.total_keywords_prior} MoM (${pctChange(mom.total_keywords, mom.total_keywords_prior) || 'N/A'})\\n`);\n    lines.push(`Average Rank: ${mom.average_rank} vs ${mom.average_rank_prior} MoM (${pctChange(mom.average_rank, mom.average_rank_prior) || 'N/A'})\\n`);\n    lines.push(`Positions 1-3: ${mom.pos_1_3} vs ${mom.pos_1_3_prior} MoM (${pctChange(mom.pos_1_3, mom.pos_1_3_prior) || 'N/A'})\\n`);\n    lines.push(`Positions 4-10: ${mom.pos_4_10} vs ${mom.pos_4_10_prior} MoM (${pctChange(mom.pos_4_10, mom.pos_4_10_prior) || 'N/A'})\\n`);\n    lines.push(`Positions 11-20: ${mom.pos_11_20} vs ${mom.pos_11_20_prior} MoM (${pctChange(mom.pos_11_20, mom.pos_11_20_prior) || 'N/A'})\\n`);\n    lines.push(`Positions 21+: ${mom.pos_21_plus || 0}\\n`);\n    lines.push(`Above the Fold: ${mom.above_the_fold} vs ${mom.above_the_fold_prior} MoM (${pctChange(mom.above_the_fold, mom.above_the_fold_prior) || 'N/A'})\\n`);\n    lines.push(`AI Share of Voice: ${mom.ai_share_of_voice} vs ${mom.ai_share_of_voice_prior} MoM (${pctChange(mom.ai_share_of_voice, mom.ai_share_of_voice_prior) || 'N/A'})\\n`);\n    lines.push(`AI Traffic Value: ${mom.ai_traffic_value} vs ${mom.ai_traffic_value_prior} MoM (${pctChange(mom.ai_traffic_value, mom.ai_traffic_value_prior) || 'N/A'})\\n\\n`);\n  }\n\n  lines.push(`Top 10 Keywords:\\n`);\n  (acc.top_10_keywords || []).forEach(k => {\n    lines.push(`  - ${k.keyword}: rank ${k.rank}, SV ${k.search_volume || 0}\\n`);\n  });\n  lines.push(`\\n`);\n\n  if (acc.top_improvements?.length > 0) {\n    lines.push(`Top KW Improvements (${accPeriod}):\\n`);\n    acc.top_improvements.forEach(k => {\n      lines.push(`  - ${k.keyword}: ${k.prior_rank} -> ${k.rank} (+${k.change})\\n`);\n    });\n    lines.push(`\\n`);\n  }\n\n  if (acc.top_losses?.length > 0) {\n    lines.push(`KW Losses (${accPeriod}):\\n`);\n    acc.top_losses.forEach(k => {\n      lines.push(`  - ${k.keyword}: ${k.prior_rank} -> ${k.rank} (${k.change})\\n`);\n    });\n    lines.push(`\\n`);\n  }\n\n  return lines.join('');\n}\n\nfunction combineStats(desk, mob) {\n  const hasPrior = !!(desk.has_prior_data || mob.has_prior_data || \n    desk.total_keywords_prior || mob.total_keywords_prior);\n  const totalKw      = (desk.total_keywords || 0) + (mob.total_keywords || 0);\n  const totalKwPrior = hasPrior ? ((desk.total_keywords_prior || 0) + (mob.total_keywords_prior || 0)) : null;\n\n  const avgRankCombined = (desk.average_rank && mob.average_rank)\n    ? Math.round(((desk.average_rank * (desk.total_keywords || 0)) + (mob.average_rank * (mob.total_keywords || 0))) / totalKw * 10) / 10\n    : desk.average_rank || mob.average_rank || null;\n\n  const avgRankPrior = hasPrior && (desk.average_rank_prior && mob.average_rank_prior)\n    ? Math.round(((desk.average_rank_prior * (desk.total_keywords_prior || 0)) + (mob.average_rank_prior * (mob.total_keywords_prior || 0))) / totalKwPrior * 10) / 10\n    : desk.average_rank_prior || mob.average_rank_prior || null;\n\n  return {\n    has_prior_data:          hasPrior,\n    total_keywords:          totalKw,\n    total_keywords_prior:    totalKwPrior,\n    average_rank:            avgRankCombined,\n    average_rank_prior:      avgRankPrior,\n    pos_1_3:                 (desk.pos_1_3 || 0) + (mob.pos_1_3 || 0),\n    pos_1_3_prior:           hasPrior ? ((desk.pos_1_3_prior || 0) + (mob.pos_1_3_prior || 0)) : null,\n    pos_4_10:                (desk.pos_4_10 || 0) + (mob.pos_4_10 || 0),\n    pos_4_10_prior:          hasPrior ? ((desk.pos_4_10_prior || 0) + (mob.pos_4_10_prior || 0)) : null,\n    pos_11_20:               (desk.pos_11_20 || 0) + (mob.pos_11_20 || 0),\n    pos_11_20_prior:         hasPrior ? ((desk.pos_11_20_prior || 0) + (mob.pos_11_20_prior || 0)) : null,\n    pos_21_plus:             (desk.pos_21_plus || 0) + (mob.pos_21_plus || 0),\n    above_the_fold:          (desk.above_the_fold || 0) + (mob.above_the_fold || 0),\n    above_the_fold_prior:    hasPrior ? ((desk.above_the_fold_prior || 0) + (mob.above_the_fold_prior || 0)) : null,\n    ai_share_of_voice:       (desk.ai_share_of_voice || 0) + (mob.ai_share_of_voice || 0),\n    ai_share_of_voice_prior: hasPrior ? ((desk.ai_share_of_voice_prior || 0) + (mob.ai_share_of_voice_prior || 0)) : null,\n    ai_traffic_value:        (desk.ai_traffic_value || 0) + (mob.ai_traffic_value || 0),\n    ai_traffic_value_prior:  hasPrior ? ((desk.ai_traffic_value_prior || 0) + (mob.ai_traffic_value_prior || 0)) : null,\n  };\n}\n\nfunction buildCombinedSection(accDesktop, accMobile) {\n  const lines = [];\n  const combined    = combineStats(accDesktop, accMobile);\n  const combinedQoQ = combineStats(accDesktop.qoq || {}, accMobile.qoq || {});\n  const combinedMoM = combineStats(accDesktop.mom || {}, accMobile.mom || {});\n\n  const accPeriod   = accDesktop.period_label || accMobile.period_label || 'Initial';\n  const initialDate = accDesktop.initial_date ? ` (since ${accDesktop.initial_date})` : '';\n  const hasPrior    = combined.has_prior_data;\n\n  function compare(current, prior) {\n    if (!hasPrior || prior === null || prior === undefined) return `${current ?? 'N/A'}`;\n    const pct = pctChange(current, prior);\n    return `${current} vs ${prior} ${accPeriod}${initialDate}${pct ? ' (' + pct + ')' : ''}`;\n  }\n\n  function compareBlock(c, label) {\n    const hp = c.has_prior_data;\n    return function(cur, pri) {\n      if (!hp || pri === null || pri === undefined) return `${cur ?? 'N/A'}`;\n      const pct = pctChange(cur, pri);\n      return `${cur} vs ${pri} ${label}${pct ? ' (' + pct + ')' : ''}`;\n    };\n  }\n\n  lines.push(`--- ${accPeriod}${initialDate}\\n`);\n  lines.push(`Total Keywords Tracked: ${compare(combined.total_keywords, combined.total_keywords_prior)}\\n`);\n  lines.push(`Average Rank: ${compare(combined.average_rank, combined.average_rank_prior)}\\n`);\n  lines.push(`Positions 1-3: ${compare(combined.pos_1_3, combined.pos_1_3_prior)}\\n`);\n  lines.push(`Positions 4-10: ${compare(combined.pos_4_10, combined.pos_4_10_prior)}\\n`);\n  lines.push(`Positions 11-20: ${compare(combined.pos_11_20, combined.pos_11_20_prior)}\\n`);\n  lines.push(`Positions 21+: ${combined.pos_21_plus || 0}\\n`);\n  lines.push(`Above the Fold: ${compare(combined.above_the_fold, combined.above_the_fold_prior)}\\n`);\n  lines.push(`AI Share of Voice: ${compare(combined.ai_share_of_voice, combined.ai_share_of_voice_prior)}\\n`);\n  lines.push(`AI Traffic Value: ${compare(combined.ai_traffic_value, combined.ai_traffic_value_prior)}\\n\\n`);\n\n  if (combinedQoQ.has_prior_data) {\n    const cpQoQ = compareBlock(combinedQoQ, 'QoQ');\n    lines.push(`--- Quarter on Quarter\\n`);\n    lines.push(`Total Keywords Tracked: ${cpQoQ(combinedQoQ.total_keywords, combinedQoQ.total_keywords_prior)}\\n`);\n    lines.push(`Average Rank: ${cpQoQ(combinedQoQ.average_rank, combinedQoQ.average_rank_prior)}\\n`);\n    lines.push(`Positions 1-3: ${cpQoQ(combinedQoQ.pos_1_3, combinedQoQ.pos_1_3_prior)}\\n`);\n    lines.push(`Positions 4-10: ${cpQoQ(combinedQoQ.pos_4_10, combinedQoQ.pos_4_10_prior)}\\n`);\n    lines.push(`Positions 11-20: ${cpQoQ(combinedQoQ.pos_11_20, combinedQoQ.pos_11_20_prior)}\\n`);\n    lines.push(`Positions 21+: ${combinedQoQ.pos_21_plus || 0}\\n`);\n    lines.push(`Above the Fold: ${cpQoQ(combinedQoQ.above_the_fold, combinedQoQ.above_the_fold_prior)}\\n`);\n    lines.push(`AI Share of Voice: ${cpQoQ(combinedQoQ.ai_share_of_voice, combinedQoQ.ai_share_of_voice_prior)}\\n`);\n    lines.push(`AI Traffic Value: ${cpQoQ(combinedQoQ.ai_traffic_value, combinedQoQ.ai_traffic_value_prior)}\\n\\n`);\n  }\n\n  if (combinedMoM.has_prior_data) {\n    const cpMoM = compareBlock(combinedMoM, 'MoM');\n    lines.push(`--- Month on Month\\n`);\n    lines.push(`Total Keywords Tracked: ${cpMoM(combinedMoM.total_keywords, combinedMoM.total_keywords_prior)}\\n`);\n    lines.push(`Average Rank: ${cpMoM(combinedMoM.average_rank, combinedMoM.average_rank_prior)}\\n`);\n    lines.push(`Positions 1-3: ${cpMoM(combinedMoM.pos_1_3, combinedMoM.pos_1_3_prior)}\\n`);\n    lines.push(`Positions 4-10: ${cpMoM(combinedMoM.pos_4_10, combinedMoM.pos_4_10_prior)}\\n`);\n    lines.push(`Positions 11-20: ${cpMoM(combinedMoM.pos_11_20, combinedMoM.pos_11_20_prior)}\\n`);\n    lines.push(`Positions 21+: ${combinedMoM.pos_21_plus || 0}\\n`);\n    lines.push(`Above the Fold: ${cpMoM(combinedMoM.above_the_fold, combinedMoM.above_the_fold_prior)}\\n`);\n    lines.push(`AI Share of Voice: ${cpMoM(combinedMoM.ai_share_of_voice, combinedMoM.ai_share_of_voice_prior)}\\n`);\n    lines.push(`AI Traffic Value: ${cpMoM(combinedMoM.ai_traffic_value, combinedMoM.ai_traffic_value_prior)}\\n\\n`);\n  }\n\n  lines.push(`Top 10 Keywords (Desktop):\\n`);\n  (accDesktop.top_10_keywords || []).forEach(k => {\n    lines.push(`  - ${k.keyword}: rank ${k.rank}, SV ${k.search_volume || 0}\\n`);\n  });\n  lines.push(`\\n`);\n\n  lines.push(`Top 10 Keywords (Mobile):\\n`);\n  (accMobile.top_10_keywords || []).forEach(k => {\n    lines.push(`  - ${k.keyword}: rank ${k.rank}, SV ${k.search_volume || 0}\\n`);\n  });\n  lines.push(`\\n`);\n\n  if (accDesktop.top_improvements?.length > 0) {\n    lines.push(`Top KW Improvements Desktop (${accPeriod}):\\n`);\n    accDesktop.top_improvements.forEach(k => {\n      lines.push(`  - ${k.keyword}: ${k.prior_rank} -> ${k.rank} (+${k.change})\\n`);\n    });\n    lines.push(`\\n`);\n  }\n\n  if (accMobile.top_improvements?.length > 0) {\n    lines.push(`Top KW Improvements Mobile (${accPeriod}):\\n`);\n    accMobile.top_improvements.forEach(k => {\n      lines.push(`  - ${k.keyword}: ${k.prior_rank} -> ${k.rank} (+${k.change})\\n`);\n    });\n    lines.push(`\\n`);\n  }\n\n  if (accDesktop.top_losses?.length > 0) {\n    lines.push(`KW Losses Desktop (${accPeriod}):\\n`);\n    accDesktop.top_losses.forEach(k => {\n      lines.push(`  - ${k.keyword}: ${k.prior_rank} -> ${k.rank} (${k.change})\\n`);\n    });\n    lines.push(`\\n`);\n  }\n\n  if (accMobile.top_losses?.length > 0) {\n    lines.push(`KW Losses Mobile (${accPeriod}):\\n`);\n    accMobile.top_losses.forEach(k => {\n      lines.push(`  - ${k.keyword}: ${k.prior_rank} -> ${k.rank} (${k.change})\\n`);\n    });\n    lines.push(`\\n`);\n  }\n\n  return lines.join('');\n}\n\n// GBP helpers\nfunction sumGbpMetrics(timeSeries, startDate, endDate) {\n  const start = new Date(startDate);\n  const end   = new Date(endDate);\n  const totals = {\n    impressions_maps: 0,\n    impressions_search: 0,\n    direction_requests: 0,\n    call_clicks: 0,\n    website_clicks: 0\n  };\n\n  if (!timeSeries || !Array.isArray(timeSeries)) return totals;\n\n  for (const series of timeSeries) {\n    const metric = series.dailyMetric;\n    const points = series.timeSeries?.datedValues || [];\n    for (const point of points) {\n      const d = new Date(`${point.date.year}-${String(point.date.month).padStart(2,'0')}-${String(point.date.day).padStart(2,'0')}`);\n      if (d >= start && d <= end) {\n        const val = parseInt(point.value || 0, 10);\n        if (metric === 'BUSINESS_IMPRESSIONS_DESKTOP_MAPS' || metric === 'BUSINESS_IMPRESSIONS_MOBILE_MAPS') {\n          totals.impressions_maps += val;\n        } else if (metric === 'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH' || metric === 'BUSINESS_IMPRESSIONS_MOBILE_SEARCH') {\n          totals.impressions_search += val;\n        } else if (metric === 'BUSINESS_DIRECTION_REQUESTS') {\n          totals.direction_requests += val;\n        } else if (metric === 'CALL_CLICKS') {\n          totals.call_clicks += val;\n        } else if (metric === 'WEBSITE_CLICKS') {\n          totals.website_clicks += val;\n        }\n      }\n    }\n  }\n\n  totals.total_impressions = totals.impressions_maps + totals.impressions_search;\n  return totals;\n}\n\nfunction buildGbpSection(gbpApiRaw, periods) {\n  const lines = [];\n  const ts = gbpApiRaw.multiDailyMetricTimeSeries?.[0]?.dailyMetricTimeSeries || [];\n\n  if (ts.length === 0) {\n    lines.push(`No GBP performance data available.\\n\\n`);\n    return lines.join('');\n  }\n\n  const a    = sumGbpMetrics(ts, periods.a_start,        periods.a_end);\n  const b    = sumGbpMetrics(ts, periods.b_start,        periods.b_end);\n  const qoq  = sumGbpMetrics(ts, periods.qoq_start,      periods.qoq_end);\n  const mom  = sumGbpMetrics(ts, periods.mom_start,      periods.mom_end);\n  const momP = sumGbpMetrics(ts, periods.mom_prev_start,  periods.mom_prev_end);\n\n  function row(label, cur, prior, suffix) {\n    return `${label}: ${cur} vs ${prior} ${suffix} (${pctChange(cur, prior) || 'N/A'})\\n`;\n  }\n\n  lines.push(`--- Year on Year\\n`);\n  lines.push(row(`Total Impressions`,  a.total_impressions,  b.total_impressions,  'YoY'));\n  lines.push(row(`Maps Impressions`,   a.impressions_maps,   b.impressions_maps,   'YoY'));\n  lines.push(row(`Search Impressions`, a.impressions_search, b.impressions_search, 'YoY'));\n  lines.push(row(`Direction Requests`, a.direction_requests, b.direction_requests, 'YoY'));\n  lines.push(row(`Call Clicks`,        a.call_clicks,        b.call_clicks,        'YoY'));\n  lines.push(row(`Website Clicks`,     a.website_clicks,     b.website_clicks,     'YoY'));\n  lines.push(`\\n`);\n\n  lines.push(`--- Quarter on Quarter\\n`);\n  lines.push(row(`Total Impressions`,  a.total_impressions,  qoq.total_impressions,  'QoQ'));\n  lines.push(row(`Maps Impressions`,   a.impressions_maps,   qoq.impressions_maps,   'QoQ'));\n  lines.push(row(`Search Impressions`, a.impressions_search, qoq.impressions_search, 'QoQ'));\n  lines.push(row(`Direction Requests`, a.direction_requests, qoq.direction_requests, 'QoQ'));\n  lines.push(row(`Call Clicks`,        a.call_clicks,        qoq.call_clicks,        'QoQ'));\n  lines.push(row(`Website Clicks`,     a.website_clicks,     qoq.website_clicks,     'QoQ'));\n  lines.push(`\\n`);\n\n  lines.push(`--- Month on Month\\n`);\n  lines.push(row(`Total Impressions`,  mom.total_impressions,  momP.total_impressions,  'MoM'));\n  lines.push(row(`Maps Impressions`,   mom.impressions_maps,   momP.impressions_maps,   'MoM'));\n  lines.push(row(`Search Impressions`, mom.impressions_search, momP.impressions_search, 'MoM'));\n  lines.push(row(`Direction Requests`, mom.direction_requests, momP.direction_requests, 'MoM'));\n  lines.push(row(`Call Clicks`,        mom.call_clicks,        momP.call_clicks,        'MoM'));\n  lines.push(row(`Website Clicks`,     mom.website_clicks,     momP.website_clicks,     'MoM'));\n  lines.push(`\\n`);\n\n  return lines.join('');\n}\n\nconst mobileScore  = Math.round((speedMobile.lighthouseResult?.categories?.performance?.score || 0) * 100);\nconst desktopScore = Math.round((speedDesktop.lighthouseResult?.categories?.performance?.score || 0) * 100);\n\nconst lines = [];\n\nlines.push(`${clientName} SEO Audit - ${date}\\n`);\nlines.push(`Domain: ${domain}\\n\\n`);\n\nlines.push(`1. PERFORMANCE\\n`);\nlines.push(`Mobile PageSpeed: ${mobileScore}/100\\n`);\nlines.push(`Desktop PageSpeed: ${desktopScore}/100\\n\\n`);\n\nlines.push(`2. GOOGLE SEARCH CONSOLE\\n\\n`);\nlines.push(`--- Year on Year\\n`);\nlines.push(`Total Clicks: ${gscTotalsA.clicks || 'N/A'} vs ${gscTotalsB.clicks || 'N/A'} YoY (${pctChange(gscTotalsA.clicks, gscTotalsB.clicks) || 'N/A'})\\n`);\nlines.push(`Total Impressions: ${gscTotalsA.impressions || 'N/A'} vs ${gscTotalsB.impressions || 'N/A'} YoY (${pctChange(gscTotalsA.impressions, gscTotalsB.impressions) || 'N/A'})\\n`);\nlines.push(`Average CTR: ${gscTotalsA.ctr ? (gscTotalsA.ctr * 100).toFixed(2) + '%' : 'N/A'} vs ${gscTotalsB.ctr ? (gscTotalsB.ctr * 100).toFixed(2) + '%' : 'N/A'} YoY (${pctChange(gscTotalsA.ctr, gscTotalsB.ctr) || 'N/A'})\\n`);\nlines.push(`Average Position: ${gscTotalsA.position ? gscTotalsA.position.toFixed(1) : 'N/A'} vs ${gscTotalsB.position ? gscTotalsB.position.toFixed(1) : 'N/A'} YoY (${pctChange(gscTotalsA.position, gscTotalsB.position) || 'N/A'})\\n\\n`);\n\nlines.push(`--- Quarter on Quarter\\n`);\nlines.push(`Total Clicks: ${gscTotalsA.clicks || 'N/A'} vs ${gscTotalsQoQ.clicks || 'N/A'} QoQ (${pctChange(gscTotalsA.clicks, gscTotalsQoQ.clicks) || 'N/A'})\\n`);\nlines.push(`Total Impressions: ${gscTotalsA.impressions || 'N/A'} vs ${gscTotalsQoQ.impressions || 'N/A'} QoQ (${pctChange(gscTotalsA.impressions, gscTotalsQoQ.impressions) || 'N/A'})\\n`);\nlines.push(`Average CTR: ${gscTotalsA.ctr ? (gscTotalsA.ctr * 100).toFixed(2) + '%' : 'N/A'} vs ${gscTotalsQoQ.ctr ? (gscTotalsQoQ.ctr * 100).toFixed(2) + '%' : 'N/A'} QoQ (${pctChange(gscTotalsA.ctr, gscTotalsQoQ.ctr) || 'N/A'})\\n`);\nlines.push(`Average Position: ${gscTotalsA.position ? gscTotalsA.position.toFixed(1) : 'N/A'} vs ${gscTotalsQoQ.position ? gscTotalsQoQ.position.toFixed(1) : 'N/A'} QoQ (${pctChange(gscTotalsA.position, gscTotalsQoQ.position) || 'N/A'})\\n\\n`);\n\nlines.push(`--- Month on Month\\n`);\nlines.push(`Total Clicks: ${gscTotalsMoM.clicks || 'N/A'} vs ${gscTotalsMoMPrev.clicks || 'N/A'} MoM (${pctChange(gscTotalsMoM.clicks, gscTotalsMoMPrev.clicks) || 'N/A'})\\n`);\nlines.push(`Total Impressions: ${gscTotalsMoM.impressions || 'N/A'} vs ${gscTotalsMoMPrev.impressions || 'N/A'} MoM (${pctChange(gscTotalsMoM.impressions, gscTotalsMoMPrev.impressions) || 'N/A'})\\n`);\nlines.push(`Average CTR: ${gscTotalsMoM.ctr ? (gscTotalsMoM.ctr * 100).toFixed(2) + '%' : 'N/A'} vs ${gscTotalsMoMPrev.ctr ? (gscTotalsMoMPrev.ctr * 100).toFixed(2) + '%' : 'N/A'} MoM (${pctChange(gscTotalsMoM.ctr, gscTotalsMoMPrev.ctr) || 'N/A'})\\n`);\nlines.push(`Average Position: ${gscTotalsMoM.position ? gscTotalsMoM.position.toFixed(1) : 'N/A'} vs ${gscTotalsMoMPrev.position ? gscTotalsMoMPrev.position.toFixed(1) : 'N/A'} MoM (${pctChange(gscTotalsMoM.position, gscTotalsMoMPrev.position) || 'N/A'})\\n\\n`);\n\nlines.push(`Top 5 Keywords (by clicks):\\n`);\n(gscRows.slice(0, 5)).forEach(r => {\n  lines.push(`  - ${r.keys[0]}: ${r.clicks} clicks, ${r.impressions} impressions, CTR ${(r.ctr * 100).toFixed(1)}%, position ${r.position.toFixed(1)}\\n`);\n});\nlines.push(`\\n`);\n\nlines.push(`3. WEBSITE TRAFFIC (GA4)\\n\\n`);\nlines.push(`--- Year on Year\\n`);\nlines.push(`Sessions: ${ga4.sessions_a || 'N/A'} vs ${ga4.sessions_b || 'N/A'} YoY (${ga4.sessions_change ? ga4.sessions_change + '%' : 'N/A'})\\n`);\nlines.push(`New Users: ${ga4.newUsers_a || 'N/A'} vs ${ga4.newUsers_b || 'N/A'} YoY (${ga4.newUsers_change ? ga4.newUsers_change + '%' : 'N/A'})\\n`);\nlines.push(`Key Events: ${ga4.keyEvents_a || 'N/A'} vs ${ga4.keyEvents_b || 'N/A'} YoY (${ga4.keyEvents_change ? ga4.keyEvents_change + '%' : 'N/A'})\\n`);\nlines.push(`Organic Sessions: ${ga4.organicSessions_a || 'N/A'} vs ${ga4.organicSessions_b || 'N/A'} YoY (${ga4.organicSessions_change ? ga4.organicSessions_change + '%' : 'N/A'})\\n`);\nlines.push(`Organic % of Traffic: ${ga4.organicPct_a || 'N/A'}% vs ${ga4.organicPct_b || 'N/A'}% YoY\\n`);\nlines.push(`Avg Engagement Time: ${ga4.avgEngagementTime_a || 'N/A'}s vs ${ga4.avgEngagementTime_b || 'N/A'}s YoY (${ga4.avgEngagementTime_change ? ga4.avgEngagementTime_change + '%' : 'N/A'})\\n`);\nlines.push(`Avg Organic Engagement Time: ${ga4.avgOrganicEngagementTime_a || 'N/A'}s vs ${ga4.avgOrganicEngagementTime_b || 'N/A'}s YoY (${ga4.avgOrganicEngagementTime_change ? ga4.avgOrganicEngagementTime_change + '%' : 'N/A'})\\n`);\nlines.push(`Organic Engagement Rate: ${ga4.organicEngagementRate_a || 'N/A'}% vs ${ga4.organicEngagementRate_b || 'N/A'}% YoY (${ga4.organicEngagementRate_change ? ga4.organicEngagementRate_change + '%' : 'N/A'})\\n`);\nlines.push(`Organic Key Events: ${ga4.organicKeyEvents_a || 'N/A'} vs ${ga4.organicKeyEvents_b || 'N/A'} YoY (${ga4.organicKeyEvents_change ? ga4.organicKeyEvents_change + '%' : 'N/A'})\\n`);\nlines.push(`Phone Clicks: ${ga4.phoneClicks_a || 'N/A'} vs ${ga4.phoneClicks_b || 'N/A'} YoY (${ga4.phoneClicks_change ? ga4.phoneClicks_change + '%' : 'N/A'})\\n`);\nlines.push(`Email Clicks: ${ga4.emailClicks_a || 'N/A'} vs ${ga4.emailClicks_b || 'N/A'} YoY (${ga4.emailClicks_change ? ga4.emailClicks_change + '%' : 'N/A'})\\n`);\nlines.push(`WhatsApp Clicks: ${ga4.whatsappClicks_a || 'N/A'} vs ${ga4.whatsappClicks_b || 'N/A'} YoY (${ga4.whatsappClicks_change ? ga4.whatsappClicks_change + '%' : 'N/A'})\\n\\n`);\n\nlines.push(`--- Quarter on Quarter\\n`);\nlines.push(`Sessions: ${ga4.sessions_a || 'N/A'} vs ${ga4.sessions_qoq || 'N/A'} QoQ (${ga4.sessions_qoq_change ? ga4.sessions_qoq_change + '%' : 'N/A'})\\n`);\nlines.push(`New Users: ${ga4.newUsers_a || 'N/A'} vs ${ga4.newUsers_qoq || 'N/A'} QoQ (${ga4.newUsers_qoq_change ? ga4.newUsers_qoq_change + '%' : 'N/A'})\\n`);\nlines.push(`Key Events: ${ga4.keyEvents_a || 'N/A'} vs ${ga4.keyEvents_qoq || 'N/A'} QoQ (${ga4.keyEvents_qoq_change ? ga4.keyEvents_qoq_change + '%' : 'N/A'})\\n`);\nlines.push(`Organic Sessions: ${ga4.organicSessions_a || 'N/A'} vs ${ga4.organicSessions_qoq || 'N/A'} QoQ (${ga4.organicSessions_qoq_change ? ga4.organicSessions_qoq_change + '%' : 'N/A'})\\n`);\nlines.push(`Organic % of Traffic: ${ga4.organicPct_a || 'N/A'}% vs ${ga4.organicPct_qoq || 'N/A'}% QoQ\\n`);\nlines.push(`Avg Engagement Time: ${ga4.avgEngagementTime_a || 'N/A'}s vs ${ga4.avgEngagementTime_qoq || 'N/A'}s QoQ (${ga4.avgEngagementTime_qoq_change ? ga4.avgEngagementTime_qoq_change + '%' : 'N/A'})\\n`);\nlines.push(`Avg Organic Engagement Time: ${ga4.avgOrganicEngagementTime_a || 'N/A'}s vs ${ga4.avgOrganicEngagementTime_qoq || 'N/A'}s QoQ (${ga4.avgOrganicEngagementTime_qoq_change ? ga4.avgOrganicEngagementTime_qoq_change + '%' : 'N/A'})\\n`);\nlines.push(`Organic Engagement Rate: ${ga4.organicEngagementRate_a || 'N/A'}% vs ${ga4.organicEngagementRate_qoq || 'N/A'}% QoQ (${ga4.organicEngagementRate_qoq_change ? ga4.organicEngagementRate_qoq_change + '%' : 'N/A'})\\n`);\nlines.push(`Organic Key Events: ${ga4.organicKeyEvents_a || 'N/A'} vs ${ga4.organicKeyEvents_qoq || 'N/A'} QoQ (${ga4.organicKeyEvents_qoq_change ? ga4.organicKeyEvents_qoq_change + '%' : 'N/A'})\\n`);\nlines.push(`Phone Clicks: ${ga4.phoneClicks_a || 'N/A'} vs ${ga4.phoneClicks_qoq || 'N/A'} QoQ (${ga4.phoneClicks_qoq_change ? ga4.phoneClicks_qoq_change + '%' : 'N/A'})\\n`);\nlines.push(`Email Clicks: ${ga4.emailClicks_a || 'N/A'} vs ${ga4.emailClicks_qoq || 'N/A'} QoQ (${ga4.emailClicks_qoq_change ? ga4.emailClicks_qoq_change + '%' : 'N/A'})\\n`);\nlines.push(`WhatsApp Clicks: ${ga4.whatsappClicks_a || 'N/A'} vs ${ga4.whatsappClicks_qoq || 'N/A'} QoQ (${ga4.whatsappClicks_qoq_change ? ga4.whatsappClicks_qoq_change + '%' : 'N/A'})\\n\\n`);\n\nlines.push(`--- Month on Month\\n`);\nlines.push(`Sessions: ${ga4.sessions_mom || 'N/A'} vs ${ga4.sessions_mom_prev || 'N/A'} MoM (${ga4.sessions_mom_change ? ga4.sessions_mom_change + '%' : 'N/A'})\\n`);\nlines.push(`New Users: ${ga4.newUsers_mom || 'N/A'} vs ${ga4.newUsers_mom_prev || 'N/A'} MoM (${ga4.newUsers_mom_change ? ga4.newUsers_mom_change + '%' : 'N/A'})\\n`);\nlines.push(`Key Events: ${ga4.keyEvents_mom || 'N/A'} vs ${ga4.keyEvents_mom_prev || 'N/A'} MoM (${ga4.keyEvents_mom_change ? ga4.keyEvents_mom_change + '%' : 'N/A'})\\n`);\nlines.push(`Organic Sessions: ${ga4.organicSessions_mom || 'N/A'} vs ${ga4.organicSessions_mom_prev || 'N/A'} MoM (${ga4.organicSessions_mom_change ? ga4.organicSessions_mom_change + '%' : 'N/A'})\\n`);\nlines.push(`Organic % of Traffic: ${ga4.organicPct_mom || 'N/A'}% vs ${ga4.organicPct_mom_prev || 'N/A'}% MoM\\n`);\nlines.push(`Avg Engagement Time: ${ga4.avgEngagementTime_mom || 'N/A'}s vs ${ga4.avgEngagementTime_mom_prev || 'N/A'}s MoM (${ga4.avgEngagementTime_mom_change ? ga4.avgEngagementTime_mom_change + '%' : 'N/A'})\\n`);\nlines.push(`Avg Organic Engagement Time: ${ga4.avgOrganicEngagementTime_mom || 'N/A'}s vs ${ga4.avgOrganicEngagementTime_mom_prev || 'N/A'}s MoM (${ga4.avgOrganicEngagementTime_mom_change ? ga4.avgOrganicEngagementTime_mom_change + '%' : 'N/A'})\\n`);\nlines.push(`Organic Engagement Rate: ${ga4.organicEngagementRate_mom || 'N/A'}% vs ${ga4.organicEngagementRate_mom_prev || 'N/A'}% MoM (${ga4.organicEngagementRate_mom_change ? ga4.organicEngagementRate_mom_change + '%' : 'N/A'})\\n`);\nlines.push(`Organic Key Events: ${ga4.organicKeyEvents_mom || 'N/A'} vs ${ga4.organicKeyEvents_mom_prev || 'N/A'} MoM (${ga4.organicKeyEvents_mom_change ? ga4.organicKeyEvents_mom_change + '%' : 'N/A'})\\n`);\nlines.push(`Phone Clicks: ${ga4.phoneClicks_mom || 'N/A'} vs ${ga4.phoneClicks_mom_prev || 'N/A'} MoM (${ga4.phoneClicks_mom_change ? ga4.phoneClicks_mom_change + '%' : 'N/A'})\\n`);\nlines.push(`Email Clicks: ${ga4.emailClicks_mom || 'N/A'} vs ${ga4.emailClicks_mom_prev || 'N/A'} MoM (${ga4.emailClicks_mom_change ? ga4.emailClicks_mom_change + '%' : 'N/A'})\\n`);\nlines.push(`WhatsApp Clicks: ${ga4.whatsappClicks_mom || 'N/A'} vs ${ga4.whatsappClicks_mom_prev || 'N/A'} MoM (${ga4.whatsappClicks_mom_change ? ga4.whatsappClicks_mom_change + '%' : 'N/A'})\\n\\n`);\n\n// --- 4. ON-PAGE SEO, rebuilt from the flat crawl output (no title/meta length checks) ---\nlines.push(`4. ON-PAGE SEO\\n`);\nlines.push(`Pages crawled: ${pagesCrawled}\\n`);\nlines.push(`Pages with issues: ${pagesWithIssues}\\n\\n`);\n\nlines.push(`Content & Structure\\n`);\nlines.push(`Missing titles: ${issuesOfType('missing_title').length} pages\\n`);\nlines.push(`Missing meta descriptions: ${issuesOfType('missing_meta').length} pages\\n`);\nlines.push(`Missing H1: ${issuesOfType('missing_h1').length} pages\\n`);\nlines.push(`Multiple H1s: ${issuesOfType('multiple_h1').length} pages\\n`);\nlines.push(`Missing H2: ${issuesOfType('missing_h2').length} pages\\n`);\nlines.push(`Thin content (under 300 words): ${issuesOfType('thin_content').length} pages\\n`);\nlines.push(`Duplicate titles: ${issuesOfType('duplicate_title').length} pages\\n`);\nlines.push(`Duplicate meta descriptions: ${issuesOfType('duplicate_meta').length} pages\\n\\n`);\n\nlines.push(`Technical\\n`);\nlines.push(`404 pages: ${issuesOfType('404').length}\\n`);\nlines.push(`Server errors (5xx): ${issuesOfType('5xx_error').length}\\n`);\nlines.push(`301 redirects: ${issuesOfType('301_redirect').length}\\n`);\nlines.push(`302 redirects: ${issuesOfType('302_redirect').length}\\n`);\nlines.push(`Redirect chains: ${issuesOfType('redirect_chain').length}\\n`);\nlines.push(`Missing canonical URL: ${issuesOfType('missing_canonical').length} pages\\n`);\nlines.push(`Broken internal links: ${issuesOfType('broken_internal_link').length}\\n`);\nlines.push(`Internal links not verified (outside crawl scope): ${issuesOfType('internal_link_not_crawled').length}\\n\\n`);\n\nlines.push(`Mobile & Accessibility\\n`);\nlines.push(`Missing viewport tag (not mobile-optimised): ${issuesOfType('missing_viewport').length} pages\\n`);\nlines.push(`Images missing alt text: ${issuesOfType('images_missing_alt').length} pages\\n`);\nlines.push(`Missing HTML lang attribute: ${issuesOfType('missing_lang').length} pages\\n\\n`);\n\nlines.push(`Social & Structured Data\\n`);\nlines.push(`Missing OpenGraph tags: ${issuesOfType('missing_og_tags').length} pages\\n`);\nlines.push(`Missing Twitter Card tags: ${issuesOfType('missing_twitter_card').length} pages\\n`);\nlines.push(`No structured data (JSON-LD): ${issuesOfType('no_structured_data').length} pages\\n\\n`);\n\nconst hreflangXDefault = issuesOfType('hreflang_missing_x_default');\nconst hreflangSelfRef  = issuesOfType('hreflang_missing_self_reference');\nif (hreflangXDefault.length > 0 || hreflangSelfRef.length > 0) {\n  lines.push(`hreflang\\n`);\n  lines.push(`Missing x-default: ${hreflangXDefault.length} pages\\n`);\n  lines.push(`Missing self-reference: ${hreflangSelfRef.length} pages\\n\\n`);\n}\n\n// Named page lists, kept to the issues a client actually needs to action against a specific URL\nfunction listUrls(type, label) {\n  const rows = issuesOfType(type);\n  if (rows.length === 0) return '';\n  const out = [`${label}:\\n`];\n  rows.forEach(r => out.push(`  - ${r.url}\\n`));\n  out.push(`\\n`);\n  return out.join('');\n}\n\nfunction listDetails(type, label) {\n  const rows = issuesOfType(type);\n  if (rows.length === 0) return '';\n  const out = [`${label}:\\n`];\n  rows.forEach(r => out.push(`  - ${r.details}\\n`));\n  out.push(`\\n`);\n  return out.join('');\n}\n\n// URL plus its detail string on one line, for issues where the detail\n// carries context the URL alone doesn't (redirect target, duplicate count,\n// word count, missing image list, etc.)\nfunction listUrlsWithDetail(type, label) {\n  const rows = issuesOfType(type);\n  if (rows.length === 0) return '';\n  const out = [`${label}:\\n`];\n  rows.forEach(r => out.push(`  - ${r.url}${r.details ? ` (${r.details})` : ''}\\n`));\n  out.push(`\\n`);\n  return out.join('');\n}\n\nlines.push(listUrls('missing_title', 'Pages missing a title'));\nlines.push(listUrls('missing_meta', 'Pages missing a meta description'));\nlines.push(listUrls('missing_canonical', 'Pages missing a canonical tag'));\nlines.push(listUrls('missing_viewport', 'Pages missing a viewport tag'));\nlines.push(listUrls('missing_h2', 'Pages missing an H2'));\nlines.push(listUrlsWithDetail('multiple_h1', 'Pages with multiple H1 tags'));\nlines.push(listUrlsWithDetail('thin_content', 'Pages with thin content'));\nlines.push(listUrlsWithDetail('images_missing_alt', 'Pages with images missing alt text'));\nlines.push(listUrls('no_structured_data', 'Pages with no structured data (schema)'));\nlines.push(listUrls('404', 'Pages returning 404'));\nlines.push(listUrls('5xx_error', 'Pages returning a server error'));\nlines.push(listUrlsWithDetail('301_redirect', 'Pages returning a 301 redirect'));\nlines.push(listUrlsWithDetail('302_redirect', 'Pages returning a 302 redirect'));\nlines.push(listUrls('request_failed', 'Pages that failed to load'));\nlines.push(listUrlsWithDetail('duplicate_title', 'Pages with a duplicate title'));\nlines.push(listUrlsWithDetail('duplicate_meta', 'Pages with a duplicate meta description'));\nlines.push(listDetails('broken_internal_link', 'Broken internal links'));\nlines.push(listDetails('redirect_chain', 'Redirect chains'));\n\nlines.push(`5. SCHEMA MARKUP\\n`);\nlines.push(`LocalBusiness schema present: ${schema.local_business_schema ? 'Yes' : 'No'}\\n`);\nlines.push(`Business name: ${schema.business_name || 'Not found'}\\n`);\nlines.push(`Address: ${schema.business_address || 'Not found'}\\n`);\nlines.push(`Phone: ${schema.business_phone || 'Not found'}\\n`);\nlines.push(`Opening hours: ${schema.business_opening_hours || 'Not found'}\\n`);\nlines.push(`Schema issues: ${schema.schema_issues?.join(', ') || 'None'}\\n\\n`);\n\nlines.push(`GBP vs Schema Cross-Check: ${schema.gbp_checked ? (schema.gbp_schema_match ? 'All fields match' : `${schema.gbp_mismatches?.length} mismatch(es) found`) : 'Not checked'}\\n`);\nif (schema.gbp_checked && schema.gbp_mismatches?.length > 0) {\n  schema.gbp_mismatches.forEach(m => {\n    lines.push(`  - ${m.field}: GBP has \"${m.gbp}\", schema has \"${m.schema}\"\\n`);\n  });\n}\nlines.push(`\\n`);\n\nlines.push(`6. RANKINGS (ACCURANKER)\\n\\n`);\nlines.push(buildCombinedSection(accDesktop, accMobile));\n\nlines.push(`7. GOOGLE BUSINESS PROFILE\\n\\n`);\nlines.push(buildGbpSection(gbpApiRaw, gbpPeriods));\n\nconst fullText = lines.join('');\n\nconst requests = [\n  {\n    insertText: {\n      location: { index: 1 },\n      text: fullText\n    }\n  }\n];\n\nreturn [{ json: { requests } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10256,
+        11072
+      ],
+      "id": "37b0dcbd-625a-4bbf-9148-ea0f82f706ad",
+      "name": "Build Doc Content"
+    },
+    {
+      "parameters": {
+        "numberInputs": 9
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        8720,
+        10496
+      ],
+      "id": "506da7ee-7809-4ec6-a45e-8bf9cf5a85bc",
+      "name": "Merge GSC Data"
+    },
+    {
+      "parameters": {
+        "url": "https://app.accuranker.com/api/v4/domains/?fields=id,domain",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8256,
+        12112
+      ],
+      "id": "ec7c9391-aa59-49f2-9352-97988187df97",
+      "name": "Accuranker - List Domains ",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalise both sides the same way before comparing - strips protocol, www.,\n// a trailing slash, and lower-cases - so a trailing slash or http(s) prefix\n// coming from the Clients sheet can never cause a false \"Domain not found\".\nfunction normalise(d) {\n  return String(d || '')\n    .trim()\n    .toLowerCase()\n    .replace(/^https?:\\/\\//, '')\n    .replace(/^www\\./, '')\n    .replace(/\\/+$/, '');\n}\n\nconst domain = $('Edit Fields').item.json.domain;\nconst cleanDomain = normalise(domain);\n\nfor (const item of $input.all()) {\n  if (item.json.domain && normalise(item.json.domain) === cleanDomain) {\n    return [{ json: item.json }];\n  }\n}\n\n// Not tracked in AccuRanker under this domain - fall through with no id rather\n// than throwing, so the keyword-fetch nodes downstream can skip gracefully\n// instead of building a \"domains//keywords\" URL and 404ing the whole loop.\nconsole.warn(`AccuRanker: no domain match for \"${domain}\" - rankings will be skipped for this client this run.`);\nreturn [{ json: { error: 'Domain not found', id: null, domain } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8400,
+        12112
+      ],
+      "id": "07838988-2e6f-48fd-a198-0060029dcacb",
+      "name": "Accuranker - Find Domain ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\nconst byPeriod = (period) =>\n  allItems.filter(i => i.json._period === period && i.json.ranks?.length > 0);\n// Desktop periods\nconst currentDesktopItems  = byPeriod('current_desktop');\nconst priorDesktopItems    = byPeriod('prior_desktop');\nconst qoqDesktopItems      = byPeriod('qoq_desktop');\nconst momDesktopItems      = byPeriod('mom_prev_desktop');\nconst momPrevDesktopItems  = [];\nconst initialDesktopItems  = byPeriod('initial_desktop');\n// Mobile periods\nconst currentMobileItems   = byPeriod('current_mobile');\nconst priorMobileItems     = byPeriod('prior_mobile');\nconst qoqMobileItems       = byPeriod('qoq_mobile');\nconst momMobileItems       = byPeriod('mom_prev_mobile');\nconst momPrevMobileItems   = [];\nconst initialMobileItems   = byPeriod('initial_mobile');\n// Parse a period into a keyword array\nconst parseKeywords = (items) => items.map(i => ({\n  keyword: i.json.keyword,\n  rank: i.json.ranks[0].rank ?? null,\n  above_the_fold: i.json.ranks[0].above_the_fold || false,\n  ai_share_of_voice: i.json.ranks[0].ai_share_of_voice || 0,\n  ai_traffic_value: i.json.ranks[0].ai_traffic_value || 0,\n  search_volume: i.json.search_volume?.search_volume || 0\n}));\n// Stats helpers\nconst avgRank = (arr) => {\n  const ranked = arr.filter(k => k.rank !== null);\n  return ranked.length > 0\n    ? Math.round((ranked.reduce((s, k) => s + k.rank, 0) / ranked.length) * 10) / 10\n    : null;\n};\nconst countPos = (arr, min, max) => arr.filter(k => k.rank >= min && k.rank <= max).length;\nconst totalField = (arr, field, round = true) => {\n  const v = arr.reduce((s, k) => s + (k[field] || 0), 0);\n  return round ? Math.round(v * 100) / 100 : Math.round(v);\n};\nconst buildStats = (arr, hasPrior, priorArr) => {\n  const priorMap = {};\n  if (hasPrior) priorArr.forEach(k => {\n    if (!priorMap[k.keyword] || k.rank < priorMap[k.keyword]) priorMap[k.keyword] = k.rank;\n  });\n  const changes = hasPrior\n    ? arr.filter(k => priorMap[k.keyword] !== undefined).map(k => ({\n        keyword: k.keyword,\n        rank: k.rank,\n        prior_rank: priorMap[k.keyword],\n        change: priorMap[k.keyword] - k.rank\n      }))\n    : [];\n  return {\n    total_keywords:          arr.length,\n    total_keywords_prior:    hasPrior ? priorArr.length : null,\n    average_rank:            avgRank(arr),\n    average_rank_prior:      hasPrior ? avgRank(priorArr) : null,\n    pos_1_3:                 countPos(arr, 1, 3),\n    pos_1_3_prior:           hasPrior ? countPos(priorArr, 1, 3) : null,\n    pos_4_10:                countPos(arr, 4, 10),\n    pos_4_10_prior:          hasPrior ? countPos(priorArr, 4, 10) : null,\n    pos_11_20:               countPos(arr, 11, 20),\n    pos_11_20_prior:         hasPrior ? countPos(priorArr, 11, 20) : null,\n    pos_21_plus:             countPos(arr, 21, 9999),\n    above_the_fold:          arr.filter(k => k.above_the_fold).length,\n    above_the_fold_prior:    hasPrior ? priorArr.filter(k => k.above_the_fold).length : null,\n    ai_share_of_voice:       totalField(arr, 'ai_share_of_voice'),\n    ai_share_of_voice_prior: hasPrior ? totalField(priorArr, 'ai_share_of_voice') : null,\n    ai_traffic_value:        totalField(arr, 'ai_traffic_value', false),\n    ai_traffic_value_prior:  hasPrior ? totalField(priorArr, 'ai_traffic_value', false) : null,\n    top_10_keywords:         [...arr].sort((a, b) => a.rank - b.rank).slice(0, 10),\n    top_improvements:        changes.filter(k => k.change > 0).sort((a, b) => b.change - a.change).slice(0, 5),\n    top_losses:              changes.filter(k => k.change < 0).sort((a, b) => a.change - b.change).slice(0, 5),\n    has_prior_data:          hasPrior\n  };\n};\n// Build stats for a device (desktop or mobile)\nconst buildDevice = (currentItems, priorItems, qoqItems, momItems, momPrevItems, initialItems) => {\n  const current  = parseKeywords(currentItems);\n  const prior    = parseKeywords(priorItems);\n  const qoq      = parseKeywords(qoqItems);\n  const mom      = parseKeywords(momItems);\n  const momPrev  = parseKeywords(momPrevItems);\n  // Debug\n  console.log('QoQ items count:', qoqItems.length);\n  console.log('First QoQ rank:', qoqItems[0]?.json?.ranks?.[0]?.rank);\n  console.log('First current rank:', currentItems[0]?.json?.ranks?.[0]?.rank);\n  const currentRankMap = {};\n  current.forEach(k => currentRankMap[k.keyword] = k.rank);\n  const isDifferent = (priorArr) =>\n    priorArr.some(k => currentRankMap[k.keyword] !== undefined &&\n                       currentRankMap[k.keyword] !== k.rank);\n  const hasYoY     = prior.length > 0 && isDifferent(prior);\n  const hasQoQ     = qoq.length > 0;\n  const hasMoM     = mom.length > 0;\n  const hasMomPrev = momPrev.length > 0;\n  // Initial fallback if no YoY\n  const hasInitial = initialItems.some(i => i.json.initial_rank?.rank !== undefined);\n  let initialFallback = [];\n  if (!hasYoY && hasInitial) {\n    initialFallback = initialItems\n      .filter(i => i.json.initial_rank?.rank !== undefined)\n      .map(i => ({\n        keyword: i.json.keyword,\n        rank: i.json.initial_rank.rank,\n        above_the_fold: false,\n        ai_share_of_voice: i.json.initial_rank.share_of_voice || 0,\n        ai_traffic_value: 0,\n        search_volume: i.json.search_volume?.search_volume || 0\n      }));\n  }\n  const initialDate = !hasYoY && hasInitial\n    ? initialItems.find(i => i.json.initial_rank?.created_at)?.json.initial_rank.created_at\n    : null;\n  const initialDateLabel = initialDate\n    ? new Date(initialDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })\n    : null;\n  const yoyPrior = hasYoY ? prior : (hasInitial ? initialFallback : []);\n  const yoyHas   = hasYoY || hasInitial;\n  const yoyLabel = hasYoY ? 'YoY' : 'Initial';\n  return {\n    period_label: yoyLabel,\n    initial_date: initialDateLabel,\n    ...buildStats(current, yoyHas, yoyPrior),\n    qoq:       buildStats(current, hasQoQ, qoq),\n    mom:       buildStats(current, hasMoM, mom),\n    mom_delta: buildStats(mom, hasMomPrev, momPrev),\n  };\n};\nreturn [{\n  json: {\n    desktop: buildDevice(\n      currentDesktopItems, priorDesktopItems, qoqDesktopItems,\n      momDesktopItems, momPrevDesktopItems, initialDesktopItems\n    ),\n    mobile: buildDevice(\n      currentMobileItems, priorMobileItems, qoqMobileItems,\n      momMobileItems, momPrevMobileItems, initialMobileItems\n    )\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9536,
+        12144
+      ],
+      "id": "cb1b04d7-409c-4b40-a957-10c82e8a50ac",
+      "name": "Accuranker - Parse"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  item.json._period = 'current_desktop'; // change per branch\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9008,
+        12096
+      ],
+      "id": "1e3555fb-e821-4cdf-9633-fc2cd905bcc4",
+      "name": "Tag after \"Accuranker – Keywords\""
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  item.json._period = 'prior_desktop'; // change per branch\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9008,
+        12368
+      ],
+      "id": "c92fb607-312a-4360-8d7d-0104e14907f0",
+      "name": "Tag after \"Accuranker – Keywords Prior\""
+    },
+    {
+      "parameters": {
+        "url": "https://mybusinessbusinessinformation.googleapis.com/v1/accounts/YOUR_GBP_ACCOUNT_ID/locations?readMask=name%2Ctitle%2CstorefrontAddress%2CwebsiteUri%2CphoneNumbers&pageSize=100",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleBusinessProfileOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7984,
+        12544
+      ],
+      "id": "3251820b-4b0f-4149-bfa3-e17da75da2db",
+      "name": "GBP - List Accounts",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleBusinessProfileOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleBusinessProfileOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://analyticsdata.googleapis.com/v1beta/properties/{{ $('Edit Fields').item.json.ga_property_id }}:runReport",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleAnalyticsOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"dateRanges\": [\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_a_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_a_end }}\",\n      \"name\": \"period_a\"\n    },\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_b_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_b_end }}\",\n      \"name\": \"period_b\"\n    }\n  ],\n  \"metrics\": [\n    { \"name\": \"sessions\" },\n    { \"name\": \"userEngagementDuration\" },\n    { \"name\": \"newUsers\" },\n    { \"name\": \"keyEvents\" }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7984,
+        11408
+      ],
+      "id": "35258c73-a8fc-460c-9095-ab0b9c76754b",
+      "name": "GA4 Standard Metrics YoY",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleAnalyticsOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleAnalyticsOAuth2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://analyticsdata.googleapis.com/v1beta/properties/{{ $('Edit Fields').item.json.ga_property_id }}:runReport",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleAnalyticsOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"dateRanges\": [\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_a_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_a_end }}\",\n      \"name\": \"period_a\"\n    },\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_b_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_b_end }}\",\n      \"name\": \"period_b\"\n    }\n  ],\n  \"dimensions\": [\n    { \"name\": \"sessionDefaultChannelGroup\" }\n  ],\n  \"metrics\": [\n    { \"name\": \"sessions\" },\n    { \"name\": \"userEngagementDuration\" },\n    { \"name\": \"keyEvents\" },\n    { \"name\": \"engagedSessions\" }\n  ],\n  \"dimensionFilter\": {\n    \"filter\": {\n      \"fieldName\": \"sessionDefaultChannelGroup\",\n      \"stringFilter\": {\n        \"matchType\": \"EXACT\",\n        \"value\": \"Organic Search\"\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7984,
+        11568
+      ],
+      "id": "d0f3a11e-6dfc-44ff-93d3-52325a590aff",
+      "name": "GA4 Organic Metrics YoY",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleAnalyticsOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleAnalyticsOAuth2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://analyticsdata.googleapis.com/v1beta/properties/{{ $('Edit Fields').item.json.ga_property_id }}:runReport",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleAnalyticsOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"dateRanges\": [\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_a_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_a_end }}\",\n      \"name\": \"period_a\"\n    },\n    {\n      \"startDate\": \"{{ $('Code in JavaScript').item.json.period_b_start }}\",\n      \"endDate\": \"{{ $('Code in JavaScript').item.json.period_b_end }}\",\n      \"name\": \"period_b\"\n    }\n  ],\n  \"dimensions\": [\n    { \"name\": \"eventName\" }\n  ],\n  \"metrics\": [\n    { \"name\": \"eventCount\" }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7984,
+        11712
+      ],
+      "id": "5ce13aa5-2b3d-4061-b560-c1660e9b3e25",
+      "name": "GA4 Click Events YoY",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleAnalyticsOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleAnalyticsOAuth2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        8496,
+        11248
+      ],
+      "id": "7b9f91ea-fd09-4c6b-ba7e-615a5d4c5f93",
+      "name": "Merge All GA Data"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        8320,
+        11328
+      ],
+      "id": "d6c43eb3-10ff-4c63-9018-7632e6c4f026",
+      "name": "Merge YoY"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        8320,
+        11136
+      ],
+      "id": "3e4412bf-053b-4353-ad20-91a55e9603f5",
+      "name": "Merge QoQ & MoM"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  item.json._period = 'qoq_desktop'; // change per branch\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9008,
+        12512
+      ],
+      "id": "90fd4b89-aa6d-4a2e-9bf5-f320d0238701",
+      "name": "Tag after \"Accuranker - Keywords QoQ\""
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  item.json._period = 'mom_prev_desktop'; // change per branch\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9008,
+        12656
+      ],
+      "id": "8d6bdbdc-fdfa-4b6e-a82c-3674488a0c05",
+      "name": "Tag after \"Accuranker - Keywords MoM Prev\""
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice,ranks.ai_traffic_value&period_from={{ $('Code in JavaScript').item.json.period_b_end }}&period_to={{ $('Code in JavaScript').item.json.period_b_end }}&filter_id=9179",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8800,
+        13280
+      ],
+      "id": "f5e94836-0d3d-4ee0-87bd-5a354cd2424b",
+      "name": "Accuranker - Keywords Last Year1",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice,ranks.ai_traffic_value&filter_id=9179",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8800,
+        13136
+      ],
+      "id": "faea140c-b4c8-41e0-8c80-3c9550eb5211",
+      "name": "Accuranker - Keywords Initial1",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice,ranks.ai_traffic_value&date={{ $('Code in JavaScript').item.json.period_a_end }}&filter_id=9179",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8800,
+        13008
+      ],
+      "id": "0f907307-9dca-4ee8-8091-441fd9df5b72",
+      "name": "Accuranker - Keywords Current1",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice,ranks.ai_traffic_value&period_from={{ $('Code in JavaScript').item.json.period_qoq_end }}&period_to={{ $('Code in JavaScript').item.json.period_qoq_end }}&filter_id=9179",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8800,
+        13440
+      ],
+      "id": "ba079aa8-7e4b-47fa-9f2c-8b89606774e9",
+      "name": "Accuranker - Keywords QoQ1",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice,ranks.ai_traffic_value&period_from={{ $('Code in JavaScript').item.json.period_mom_prev_end }}&period_to={{ $('Code in JavaScript').item.json.period_mom_prev_end }}&filter_id=9179",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8800,
+        13600
+      ],
+      "id": "981324c7-bf93-4ac4-8ae9-64b15baaf59b",
+      "name": "Accuranker - Keywords MoM Prev1",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice,ranks.ai_traffic_value&date={{ $('Code in JavaScript').item.json.period_a_end }}&filter_id=9178",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8800,
+        12096
+      ],
+      "id": "5d11408a-95ab-4e95-a37d-2770b3332514",
+      "name": "Accuranker - Keywords Current Desktop",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice,ranks.ai_traffic_value&filter_id=9178",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8800,
+        12224
+      ],
+      "id": "35c09a41-41df-4d67-ae34-9c85affd5092",
+      "name": "Accuranker - Keywords Initial Desktop",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice,ranks.ai_traffic_value&period_from={{ $('Code in JavaScript').item.json.period_b_end }}&period_to={{ $('Code in JavaScript').item.json.period_b_end }}&filter_id=9178",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8800,
+        12368
+      ],
+      "id": "5ed6b863-3ca3-4ac7-a2d7-937b4c34ac28",
+      "name": "Accuranker - Keywords Last Year Desktop",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice,ranks.ai_traffic_value&period_from={{ $('Code in JavaScript').item.json.period_qoq_end }}&period_to={{ $('Code in JavaScript').item.json.period_qoq_end }}&filter_id=9178",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8800,
+        12512
+      ],
+      "id": "62891540-ceb1-4354-80eb-816456164536",
+      "name": "Accuranker - Keywords QoQ Desktop",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://app.accuranker.com/api/v4/domains/{{ $('Accuranker - Find Domain ID').item.json.id }}/keywords/?fields=id,keyword,search_volume.search_volume,initial_rank,ranks.rank,ranks.above_the_fold,ranks.ai_share_of_voice,ranks.ai_traffic_value&period_from={{ $('Code in JavaScript').item.json.period_mom_prev_end }}&period_to={{ $('Code in JavaScript').item.json.period_mom_prev_end }}&filter_id=9178",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8800,
+        12656
+      ],
+      "id": "faf396d0-a9d0-433e-ab0a-815fc524840e",
+      "name": "Accuranker - Keywords MoM Prev Desktop",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your httpHeaderAuth"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  item.json._period = 'current_mobile'; // change per branch\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9008,
+        13008
+      ],
+      "id": "44b17598-788e-4b8c-bd3d-b5667b372ed7",
+      "name": "Tag after \"Accuranker – Keywords\"1"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  item.json._period = 'prior_mobile'; // change per branch\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9008,
+        13280
+      ],
+      "id": "be29200f-1d53-43e3-a668-86929278a95e",
+      "name": "Tag after \"Accuranker – Keywords Prior\"1"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  item.json._period = 'qoq_mobile'; // change per branch\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9008,
+        13440
+      ],
+      "id": "34fcc09a-cf32-4204-9535-82ce3fb723ef",
+      "name": "Tag after \"Accuranker - Keywords QoQ\"1"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  item.json._period = 'mom_prev_mobile'; // change per branch\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9008,
+        13600
+      ],
+      "id": "d53df88a-c98d-4077-9473-bced98c18597",
+      "name": "Tag after \"Accuranker - Keywords MoM Prev\"1"
+    },
+    {
+      "parameters": {
+        "numberInputs": 10
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        9360,
+        12720
+      ],
+      "id": "68340b1f-a687-42e0-be7a-8265c9c9b2d4",
+      "name": "Accuranker Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  item.json._period = 'initial_mobile'; // change per branch\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9008,
+        13136
+      ],
+      "id": "821f8a75-ca27-4303-8e22-d55c5d9a25fc",
+      "name": "Tag after \"Accuranker – Inital Keywords\"2"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  item.json._period = 'initial_desktop'; // change per branch\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9008,
+        12224
+      ],
+      "id": "ae5ef2fa-8946-4673-a926-88d3d9883859",
+      "name": "Tag after \"Accuranker – Initial Keywords\"2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const domain = $('Edit Fields').first().json.domain;\nconst locations = $input.first().json.locations;\n\nconst stripUtm = url => url ? decodeURIComponent(url).split('?')[0].split('#')[0] : '';\n\n// Not every client has a GBP (Google Business Profile) listing, and some\n// clients' accounts return no locations at all. Rather than throwing (which\n// would kill this client's whole run), fall through to a null placeholder\n// that flows down the same chain into Merge All Data - Performance data GBP\n// and Performance API code node already handle missing/error data safely.\nconst match = Array.isArray(locations)\n  ? locations.find(loc => loc.websiteUri && stripUtm(loc.websiteUri).includes(domain))\n  : null;\n\nif (!match) {\n  return [{ json: {\n    locationId: null,\n    locationName: null,\n    title: null,\n    domain: domain,\n    gbp_available: false\n  }}];\n}\n\nreturn [{ json: {\n  locationId: match.name.replace('locations/', ''),\n  locationName: match.name,\n  title: match.title,\n  domain: domain,\n  gbp_available: true\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8192,
+        12544
+      ],
+      "id": "8ff79b05-92cc-425a-a68d-2ed886fa3b06",
+      "name": "List Locations node",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://businessprofileperformance.googleapis.com/v1/locations/{{$json.locationId}}:fetchMultiDailyMetricsTimeSeries?dailyMetrics=BUSINESS_IMPRESSIONS_DESKTOP_MAPS&dailyMetrics=BUSINESS_IMPRESSIONS_DESKTOP_SEARCH&dailyMetrics=BUSINESS_IMPRESSIONS_MOBILE_MAPS&dailyMetrics=BUSINESS_IMPRESSIONS_MOBILE_SEARCH&dailyMetrics=BUSINESS_DIRECTION_REQUESTS&dailyMetrics=CALL_CLICKS&dailyMetrics=WEBSITE_CLICKS&dailyRange.startDate.year={{ new Date(new Date().getFullYear(), new Date().getMonth() - 18, 1).getFullYear() }}&dailyRange.startDate.month={{ new Date(new Date().getFullYear(), new Date().getMonth() - 18, 1).getMonth() + 1 }}&dailyRange.startDate.day=1&dailyRange.endDate.year={{ new Date(new Date().getFullYear(), new Date().getMonth(), 0).getFullYear() }}&dailyRange.endDate.month={{ new Date(new Date().getFullYear(), new Date().getMonth(), 0).getMonth() + 1 }}&dailyRange.endDate.day={{ new Date(new Date().getFullYear(), new Date().getMonth(), 0).getDate() }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleBusinessProfileOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8336,
+        12544
+      ],
+      "id": "243d1e2f-e97c-4a23-8ea9-c209867803c5",
+      "name": "Performance data GBP",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleBusinessProfileOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleBusinessProfileOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst unwrapped = Array.isArray(raw) ? raw[0] : raw;\n\nreturn [{ json: { gbp_raw: JSON.stringify(unwrapped) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8480,
+        12544
+      ],
+      "id": "96353a56-d932-48c6-950f-d3ea894b524c",
+      "name": "Performance API code node",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        8320,
+        11856
+      ],
+      "id": "4543550c-51c8-49b3-b643-6cff6e016f6a",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        7696,
+        9600
+      ],
+      "id": "34780758-13ef-4444-9752-9f6fe209624a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        7696,
+        9440
+      ],
+      "id": "caf9caec-4045-452e-8553-30c8f99505e4",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simple, dependency-free SEO crawl node.\n// Covers: 404s, 5xx errors, 301/302 redirects, missing alt text (real\n// content images only, tracking pixels excluded), JSON-LD/schema.org\n// presence, missing/duplicate titles & meta descriptions, missing\n// canonical, H1/H2 structure, missing viewport, and thin content.\n// Uses plain HTTP requests only — no JavaScript rendering, no headless\n// browser — identifies honestly as Screaming Frog's UA, which is what\n// gets past WAFs that block browser-impersonating bot traffic.\n//\n// Output shape matches what Build Doc Content already expects:\n// record_type: 'page_summary' | 'issue' | 'homepage_schema'\n\nconst domain = $('Edit Fields').first().json.domain;\nconst baseUrl = 'https://' + domain;\nconst MAX_URLS = 300;      // safety cap\nconst CONCURRENCY = 3;     // gentle, matches what worked in testing\nconst REQUEST_DELAY_MS = 500;\nconst THIN_CONTENT_WORD_COUNT = 300;\nconst EXCLUDE_PATTERNS = ['/blog/*', '/news/*', '/wp-content/*'];\nconst THIN_CONTENT_EXEMPT_PATTERNS = ['/privacy-policy', '/cookie-policy', '/terms', '/terms-conditions'];\n\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\n\n// --- helpers -----------------------------------------------------------\n\nconst isExcluded = (url) => {\n  return EXCLUDE_PATTERNS.some((pattern) => {\n    const prefix = pattern.replace(/\\*$/, ''); // strip trailing wildcard\n    return url.includes(prefix);\n  });\n};\n\nconst isThinContentExempt = (url) => {\n  return THIN_CONTENT_EXEMPT_PATTERNS.some((pattern) => url.includes(pattern));\n};\n\n// n8n's Code node sandbox doesn't expose the global URL class, so pull the\n// path out with a regex instead of new URL(url).pathname.\nconst getPathname = (u) => {\n  const match = (u || '').match(/^https?:\\/\\/[^/]+(\\/[^?#]*)?/i);\n  return match && match[1] ? match[1] : '/';\n};\n\nconst fetchRaw = async (url) => {\n  try {\n    const resp = await this.helpers.httpRequest({\n      method: 'GET',\n      url,\n      headers: {\n        'User-Agent': 'Screaming Frog SEO Spider/24.3',\n        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',\n      },\n      followRedirect: false,\n      returnFullResponse: true,\n      ignoreHttpStatusErrors: true,\n      timeout: 15000,\n    });\n    return resp;\n  } catch (e) {\n    return { statusCode: 0, headers: {}, body: '', __error: e.message };\n  }\n};\n\n// Discover URLs by following real internal links from the homepage\n// (breadth-first), the same way Screaming Frog crawls by default — so\n// orphaned URLs with no live inlinks (old sitemap entries, dead pages)\n// never get included in the first place.\nconst discoverUrls = async () => {\n  const siteHost = (baseUrl.match(/^https?:\\/\\/([^/]+)/i)?.[1] || '').toLowerCase().replace(/^www\\./, '');\n  const ASSET_EXT = /\\.(jpg|jpeg|png|gif|svg|webp|ico|css|js|woff2?|ttf|eot|zip|mp4|mp3)(\\?|#|$)/i;\n\n  const getHost = (u) => (u.match(/^https?:\\/\\/([^/]+)/i)?.[1] || '').toLowerCase().replace(/^www\\./, '');\n\n  const resolveUrl = (base, href) => {\n    if (!href) return null;\n    href = href.trim();\n    if (!href || /^(mailto:|tel:|javascript:|#)/i.test(href)) return null;\n    let resolved;\n    if (/^https?:\\/\\//i.test(href)) {\n      resolved = href;\n    } else if (href.startsWith('//')) {\n      resolved = 'https:' + href;\n    } else if (href.startsWith('/')) {\n      const originMatch = base.match(/^(https?:\\/\\/[^/]+)/i);\n      resolved = (originMatch ? originMatch[1] : base) + href;\n    } else {\n      const dir = base.replace(/[^/]*$/, '');\n      resolved = dir + href;\n    }\n    resolved = resolved.split('#')[0];\n    while (/\\/[^/]+\\/\\.\\.\\//.test(resolved)) {\n      resolved = resolved.replace(/\\/[^/]+\\/\\.\\.\\//, '/');\n    }\n    return resolved.replace(/\\/\\.\\//g, '/');\n  };\n\n  const extractLinks = (html, pageUrl) => {\n    const hrefs = [...html.matchAll(/<a\\b[^>]*\\bhref\\s*=\\s*(\"([^\"]*)\"|'([^']*)')/gi)]\n      .map((m) => (m[2] !== undefined ? m[2] : m[3]));\n    const out = [];\n    for (const href of hrefs) {\n      const resolved = resolveUrl(pageUrl, href);\n      if (!resolved) continue;\n      if (getHost(resolved) !== siteHost) continue;\n      if (ASSET_EXT.test(resolved)) continue;\n      out.push(resolved);\n    }\n    return out;\n  };\n\n  const visited = new Set();\n  const queue = [baseUrl + '/'];\n  const discovered = [];\n\n  while (queue.length > 0 && discovered.length < MAX_URLS) {\n    const url = queue.shift();\n    const key = normalise(url);\n    if (visited.has(key)) continue;\n    visited.add(key);\n    if (isExcluded(url)) continue;\n\n    discovered.push(url);\n\n    const resp = await fetchRaw(url);\n    if (resp.statusCode === 200 && typeof resp.body === 'string') {\n      const links = extractLinks(resp.body, url);\n      for (const link of links) {\n        if (!visited.has(normalise(link))) queue.push(link);\n      }\n    }\n    await sleep(REQUEST_DELAY_MS);\n  }\n\n  return discovered;\n};\n\n// Returns an array of image src URLs (or a placeholder) for every <img>\n// missing usable alt text, rather than just a count.\nconst extractImagesMissingAlt = (html) => {\n  const imgTags = html.match(/<img\\b[^>]*>/gi) || [];\n  const missing = [];\n  for (const tag of imgTags) {\n    const altMatch = tag.match(/\\balt\\s*=\\s*(\"([^\"]*)\"|'([^']*)')/i);\n    const altValue = altMatch ? (altMatch[2] !== undefined ? altMatch[2] : altMatch[3]) : null;\n    const isMissing = !altMatch || !altValue || !altValue.trim();\n    if (isMissing) {\n      const srcMatch = tag.match(/\\bsrc\\s*=\\s*(\"([^\"]*)\"|'([^']*)')/i);\n      const src = srcMatch ? (srcMatch[2] !== undefined ? srcMatch[2] : srcMatch[3]) : '(no src attribute)';\n      missing.push(src);\n    }\n  }\n  return missing;\n};\n\nconst stripJsonComments = (str) => {\n  return str\n    .replace(/\\/\\*[\\s\\S]*?\\*\\//g, '')   // block comments\n    .replace(/^[ \\t]*\\/\\/.*$/gm, '');   // whole-line // comments only\n};\n\nconst extractJsonLd = (html) => {\n  const blocks = [...html.matchAll(/<script[^>]+type=[\"']application\\/ld\\+json[\"'][^>]*>([\\s\\S]*?)<\\/script>/gi)];\n  const parsed = [];\n  for (const b of blocks) {\n    const cleaned = stripJsonComments(b[1].trim());\n    try {\n      parsed.push(JSON.parse(cleaned));\n    } catch (e) {\n      // skip malformed JSON-LD rather than failing the whole crawl\n    }\n  }\n  return parsed;\n};\n\nconst extractTag = (html, regex) => {\n  const m = html.match(regex);\n  return m ? m[1].trim() : '';\n};\n\nconst hasCanonical = (html) => {\n  const linkTags = html.match(/<link\\b[^>]*>/gi) || [];\n  return linkTags.some(\n    (tag) => /rel\\s*=\\s*[\"']canonical[\"']/i.test(tag) && /href\\s*=\\s*[\"'][^\"']+[\"']/i.test(tag)\n  );\n};\n\nconst hasViewport = (html) => {\n  const metaTags = html.match(/<meta\\b[^>]*>/gi) || [];\n  return metaTags.some((tag) => /name\\s*=\\s*[\"']viewport[\"']/i.test(tag));\n};\n\nconst countTags = (html, tagName) => (html.match(new RegExp(`<${tagName}\\\\b[^>]*>`, 'gi')) || []).length;\n\nconst getWordCount = (html) => {\n  const stripped = html\n    .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')\n    .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/&nbsp;|&amp;|&lt;|&gt;|&quot;|&#\\d+;/g, ' ');\n  return stripped.split(/\\s+/).filter(Boolean).length;\n};\n\nconst normalise = (u) => (u || '').replace(/\\/+$/, '').toLowerCase();\n\n// --- main crawl ----------------------------------------------------------\n\nconst urls = await discoverUrls();\nconst results = [];\nlet homepageEntry = null;\n\nconst crawlOne = async (url) => {\n  await sleep(REQUEST_DELAY_MS);\n  const resp = await fetchRaw(url);\n  const status = resp.statusCode || 0;\n\n  const record = {\n    record_type: 'page_summary',\n    url,\n    statusCode: status,\n    title: '',\n    meta_desc: '',\n    images_without_alt: 0,\n    images_missing_alt_urls: [],\n    has_structured_data: false,\n    has_canonical: false,\n    has_viewport: false,\n    h1_count: 0,\n    h2_count: 0,\n    word_count: 0,\n    issue_count: 0,\n    has_issues: false,\n  };\n\n  const issues = [];\n\n  if (status === 301 || status === 302) {\n    const location = resp.headers.location || resp.headers.Location || '';\n    issues.push({\n      type: 'warning',\n      category: 'Technical',\n      issue: status === 301 ? '301_redirect' : '302_redirect',\n      details: `Redirects to ${location || '(no Location header)'}`,\n      todoist_priority: 3,\n    });\n  } else if (status >= 300 && status < 400) {\n    const location = resp.headers.location || resp.headers.Location || '';\n    issues.push({\n      type: 'warning',\n      category: 'Technical',\n      issue: `${status}_redirect`,\n      details: `Redirects to ${location || '(no Location header)'}`,\n      todoist_priority: 3,\n    });\n  } else if (status === 404) {\n    issues.push({\n      type: 'error',\n      category: 'Technical',\n      issue: '404',\n      details: 'Page returns a 404 error',\n      todoist_priority: 4,\n    });\n  } else if (status >= 500) {\n    issues.push({\n      type: 'error',\n      category: 'Technical',\n      issue: '5xx_error',\n      details: `Page returns a ${status} server error`,\n      todoist_priority: 4,\n    });\n  } else if (status === 200 && resp.body) {\n    const html = resp.body.toString();\n    const htmlForImages = html.replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, ' ');\n\n    record.title = extractTag(html, /<title[^>]*>([\\s\\S]*?)<\\/title>/i);\n    record.meta_desc = extractTag(\n      html,\n      /<meta[^>]+name=[\"']description[\"'][^>]+content=[\"']([^\"']*)[\"']/i\n    );\n    record.images_missing_alt_urls = extractImagesMissingAlt(htmlForImages);\n    record.images_without_alt = record.images_missing_alt_urls.length;\n    const jsonLd = extractJsonLd(html);\n    record.has_structured_data = jsonLd.length > 0;\n    record.has_canonical = hasCanonical(html);\n    record.has_viewport = hasViewport(html);\n    record.h1_count = countTags(html, 'h1');\n    record.h2_count = countTags(html, 'h2');\n    record.word_count = getWordCount(html);\n\n    if (!record.title) {\n      issues.push({\n        type: 'error',\n        category: 'On-Page',\n        issue: 'missing_title',\n        details: 'Page has no <title> tag',\n        todoist_priority: 4,\n      });\n    }\n    if (!record.meta_desc) {\n      issues.push({\n        type: 'warning',\n        category: 'On-Page',\n        issue: 'missing_meta',\n        details: 'Page has no meta description',\n        todoist_priority: 3,\n      });\n    }\n    if (!record.has_canonical) {\n      issues.push({\n        type: 'warning',\n        category: 'Technical',\n        issue: 'missing_canonical',\n        details: 'Page has no canonical tag',\n        todoist_priority: 3,\n      });\n    }\n    if (!record.has_viewport) {\n      issues.push({\n        type: 'warning',\n        category: 'Technical',\n        issue: 'missing_viewport',\n        details: 'Page has no viewport meta tag',\n        todoist_priority: 3,\n      });\n    }\n    if (record.h1_count > 1) {\n      issues.push({\n        type: 'warning',\n        category: 'On-Page',\n        issue: 'multiple_h1',\n        details: `Page has ${record.h1_count} H1 tags`,\n        todoist_priority: 2,\n      });\n    }\n    if (record.h2_count === 0) {\n      issues.push({\n        type: 'warning',\n        category: 'On-Page',\n        issue: 'missing_h2',\n        details: 'Page has no H2 subheadings',\n        todoist_priority: 2,\n      });\n    }\n    if (record.word_count < THIN_CONTENT_WORD_COUNT && !isThinContentExempt(url)) {\n      issues.push({\n        type: 'warning',\n        category: 'Content',\n        issue: 'thin_content',\n        details: `Page has only ${record.word_count} words (under ${THIN_CONTENT_WORD_COUNT})`,\n        todoist_priority: 2,\n      });\n    }\n    if (record.images_without_alt > 0) {\n      issues.push({\n        type: 'warning',\n        category: 'Accessibility',\n        issue: 'images_missing_alt',\n        details: `${record.images_without_alt} image(s) missing alt text: ${record.images_missing_alt_urls.slice(0, 10).join(', ')}${record.images_missing_alt_urls.length > 10 ? ` (+${record.images_missing_alt_urls.length - 10} more)` : ''}`,\n        todoist_priority: 2,\n      });\n    }\n    if (!record.has_structured_data) {\n      issues.push({\n        type: 'error',\n        category: 'Structured Data',\n        issue: 'no_structured_data',\n        details: 'Page has no JSON-LD schema markup',\n        todoist_priority: 3,\n      });\n    }\n\n    if (getPathname(url) === '/') {\n      homepageEntry = { url, json_ld: jsonLd, schema_org: [] };\n    }\n  } else if (status === 0) {\n    issues.push({\n      type: 'error',\n      category: 'Technical',\n      issue: 'request_failed',\n      details: resp.__error || 'Could not fetch page',\n      todoist_priority: 4,\n    });\n  }\n\n  record.issue_count = issues.length;\n  record.has_issues = issues.length > 0;\n\n  results.push({ json: record });\n  for (const issue of issues) {\n    results.push({ json: { record_type: 'issue', url, ...issue } });\n  }\n};\n\n// simple concurrency pool\nlet index = 0;\nconst workers = Array.from({ length: CONCURRENCY }, async () => {\n  while (index < urls.length) {\n    const i = index++;\n    await crawlOne(urls[i]);\n  }\n});\nawait Promise.all(workers);\n\n// --- cross-page checks: duplicate titles & meta descriptions -------------\n\nconst titleGroups = new Map();\nconst metaGroups = new Map();\n\nfor (const r of results) {\n  if (r.json.record_type !== 'page_summary') continue;\n  const t = (r.json.title || '').trim().toLowerCase();\n  const m = (r.json.meta_desc || '').trim().toLowerCase();\n  if (t) {\n    if (!titleGroups.has(t)) titleGroups.set(t, []);\n    titleGroups.get(t).push(r.json.url);\n  }\n  if (m) {\n    if (!metaGroups.has(m)) metaGroups.set(m, []);\n    metaGroups.get(m).push(r.json.url);\n  }\n}\n\nfor (const urlsForTitle of titleGroups.values()) {\n  if (urlsForTitle.length < 2) continue;\n  for (const u of urlsForTitle) {\n    results.push({\n      json: {\n        record_type: 'issue',\n        url: u,\n        type: 'warning',\n        category: 'On-Page',\n        issue: 'duplicate_title',\n        details: `Title is duplicated across ${urlsForTitle.length} pages`,\n        todoist_priority: 3,\n      },\n    });\n  }\n}\n\nfor (const urlsForMeta of metaGroups.values()) {\n  if (urlsForMeta.length < 2) continue;\n  for (const u of urlsForMeta) {\n    results.push({\n      json: {\n        record_type: 'issue',\n        url: u,\n        type: 'warning',\n        category: 'On-Page',\n        issue: 'duplicate_meta',\n        details: `Meta description is duplicated across ${urlsForMeta.length} pages`,\n        todoist_priority: 2,\n      },\n    });\n  }\n}\n\nif (homepageEntry) {\n  results.push({ json: { record_type: 'homepage_schema', ...homepageEntry } });\n}\n\nreturn results"
+      },
+      "id": "23c8a788-a2a5-4cc3-b4cd-309acd2814f7",
+      "name": "Librecrawl crawl node",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8576,
+        11472
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ff8fb8c8-d3dd-4fa8-870f-ee1ba39c4d94",
+              "name": "gsc_period",
+              "value": "qoq",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8048,
+        10320
+      ],
+      "id": "d6e01ba5-f573-45e9-96ab-e48cfb3a9edf",
+      "name": "GSC Totals QoQ Set"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ff8fb8c8-d3dd-4fa8-870f-ee1ba39c4d94",
+              "name": "gsc_period",
+              "value": "mom",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8048,
+        10480
+      ],
+      "id": "25af1c9d-b706-46ad-a4b2-7d167049ef67",
+      "name": "GSC Totals MoM Set"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ff8fb8c8-d3dd-4fa8-870f-ee1ba39c4d94",
+              "name": "gsc_period",
+              "value": "mom_prev",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8048,
+        10640
+      ],
+      "id": "28070e7a-4d62-4a8a-ac6b-91903115a0d5",
+      "name": "GSC Totals MoM Prev Set"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/webmasters/v3/sites/{{ encodeURIComponent($('Code in JavaScript').item.json.gsc_property) }}/searchAnalytics/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSearchConsoleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startDate\": \"{{ $('Code in JavaScript').item.json.period_qoq_start }}\",\n  \"endDate\": \"{{ $('Code in JavaScript').item.json.period_qoq_end }}\",\n  \"rowLimit\": 1\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7872,
+        10320
+      ],
+      "id": "c844e835-af94-4ae5-b614-49b3e92b3e80",
+      "name": "GSC Totals QoQ1",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSearchConsoleOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSearchConsoleOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/webmasters/v3/sites/{{ encodeURIComponent($('Code in JavaScript').item.json.gsc_property) }}/searchAnalytics/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSearchConsoleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startDate\": \"{{ $('Code in JavaScript').item.json.period_mom_start }}\",\n  \"endDate\": \"{{ $('Code in JavaScript').item.json.period_mom_end }}\",\n  \"rowLimit\": 1\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7872,
+        10480
+      ],
+      "id": "c12e5682-aec9-4d30-b3cf-886185338a60",
+      "name": "GSC Totals MoM1",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSearchConsoleOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSearchConsoleOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/webmasters/v3/sites/{{ encodeURIComponent($('Code in JavaScript').item.json.gsc_property) }}/searchAnalytics/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSearchConsoleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startDate\": \"{{ $('Code in JavaScript').item.json.period_mom_prev_start }}\",\n  \"endDate\": \"{{ $('Code in JavaScript').item.json.period_mom_prev_end }}\",\n  \"rowLimit\": 1\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7872,
+        10640
+      ],
+      "id": "6ea262b2-1967-4b9b-b584-3d5e16792d03",
+      "name": "GSC Totals MoM Prev1",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSearchConsoleOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSearchConsoleOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ff8fb8c8-d3dd-4fa8-870f-ee1ba39c4d94",
+              "name": "gsc_period",
+              "value": "current",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8416,
+        10720
+      ],
+      "id": "09911e2e-2dcc-4a46-ac41-4a976fa3acd2",
+      "name": "GSC Totals A set"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ff8fb8c8-d3dd-4fa8-870f-ee1ba39c4d94",
+              "name": "gsc_period",
+              "value": "yoy",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8416,
+        10864
+      ],
+      "id": "5f0aa571-85a0-444f-8f91-fd2568882333",
+      "name": "GSC Totals YoY set"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/webmasters/v3/sites/{{ encodeURIComponent($('Code in JavaScript').item.json.gsc_property) }}/searchAnalytics/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSearchConsoleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startDate\": \"{{ $('Code in JavaScript').item.json.period_a_start }}\",\n  \"endDate\": \"{{ $('Code in JavaScript').item.json.period_a_end }}\",\n  \"rowLimit\": 1\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8240,
+        10720
+      ],
+      "id": "26709fe1-8730-42d7-8275-6822aac86d6b",
+      "name": "GSC Totals A1",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSearchConsoleOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSearchConsoleOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/webmasters/v3/sites/{{ encodeURIComponent($('Code in JavaScript').item.json.gsc_property) }}/searchAnalytics/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSearchConsoleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startDate\": \"{{ $('Code in JavaScript').item.json.period_b_start }}\",\n  \"endDate\": \"{{ $('Code in JavaScript').item.json.period_b_end }}\",\n  \"rowLimit\": 1\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8240,
+        10864
+      ],
+      "id": "10bcc008-4b7a-4e64-80c8-857ecb05aa45",
+      "name": "GSC Totals B1",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSearchConsoleOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSearchConsoleOAuth2Api"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: \"claude-haiku-5-5\",\n  max_tokens: 4096,\n  system: `Role & Persona:\nYou are an expert SEO Account Manager and Strategist. Take the monthly or quarterly SEO audit data for a client and turn it into a clear, professional and actionable \"IM Summary & Analysis\" report.\n\nInput Data:\nYou will receive raw text containing data from:\nNinjaCat/Analytics (Traffic, Engagement, Conversions)\nAccuranker (Keyword Rankings, Share of Voice)\nGoogle Search Console (Clicks, Impressions, CTR)\nGoogle Business Profile (Views, Calls, Reviews)\nTechnical SEO (Screaming Frog, Site Speed)\n\nIf a whole section is missing from the data provided, say so plainly in the report rather than guessing or inventing numbers. Reviews are not part of this audit, so only comment on them if review data is actually supplied; otherwise add a short line asking for the review count and recent review activity.\n\nReading the numbers correctly:\nLower is better for average position (GSC) and average rank (Accuranker) - a negative percentage change on those is an improvement, not a decline, so double check the direction before calling anything a win or a loss.\nSanity check the base before quoting a percentage - a huge percentage swing on a tiny number (for example key events going from 1 to 2) is not a trend.\n\"N/A\" (for example WhatsApp clicks) usually means the event is not tracked. Only raise it if the client uses WhatsApp or tracking looks broken.\nCompare the three time frames against each other. A metric up YoY but down QoQ and MoM is a recent slide - lead with the most recent movement, then give the longer view.\nLead with organic numbers. Total sessions and total key events can be inflated by paid, social, referral or bot traffic.\n\nAnalysis Logic:\nIdentify the Narrative: Look for the \"story\" in the data. Are rankings up but traffic down? Is traffic up but leads down? Connect the dots between different data points (e.g., \"Traffic dropped because the GBP phone number was wrong\").\nPrioritize Issues: Differentiate between minor issues (e.g., \"mobile speed is 60\") and critical blockers (e.g., \"broken conversion tracking\" or \"0 reviews in 6 months\").\nGroup crawl findings by root cause rather than listing every URL. Many duplicate title or meta lists come from one cause, such as www and non-www both resolving, trailing slash variants, or parameter URLs (for example ?category=). Name the cause and the single fix rather than every affected page.\nCheck consistency: flag name or NAP mismatches between GBP and schema, and schema gaps such as missing geo coordinates.\nContextualize: Use the \"Notes\" provided in the input to add context (e.g., seasonality, new site launches, budget cuts).\nAction-Oriented: Every issue identified must have a corresponding recommendation.\n\nSEO Diagnostic Reference:\nUse this reference as your expert knowledge base when reading the data. Apply these thresholds and patterns rather than just repeating the raw numbers.\n\nTechnical Health\n- Core Web Vitals benchmarks: LCP under 2.5s, INP under 200ms, CLS under 0.1. PageSpeed scores: below 50 is critical, 50-69 needs work, 70-89 is good, 90+ is excellent.\n- Redirects should be 301 (permanent), not 302, for anything permanent. Redirect chains, loops, and any 5xx server errors are critical issues. Server response time (TTFB) should be under 200ms.\n- robots.txt and sitemap.xml should exist, stay in sync, and never block important pages.\n\nOn-Page & Content\n- Title tags: 50-60 characters, unique per page, target keyword near the start.\n- Meta descriptions: 150-160 characters, unique per page, with a call to action.\n- Exactly one H1 per page, with a logical H1 > H2 > H3 hierarchy and no skipped levels.\n- Duplicate titles or meta descriptions across pages actively suppress rankings, not just look untidy, because Google cannot tell the pages apart and they end up competing with each other.\n- Every image needs descriptive alt text; missing alt text is both an accessibility and an SEO issue.\n- Aim for at least 3-5 internal links per page with descriptive anchor text, never \"click here\".\n\nStructured Data (Schema)\n- LocalBusiness schema should exactly match the Google Business Profile: name, address, phone number, and opening hours. Any mismatch (for example a different phone number) causes local SEO confusion that can suppress local pack rankings and cost real phone or website clicks. Treat this as a high-priority fix.\n- Schema fields should never be left empty, dates should use ISO 8601, and URLs must be absolute.\n\nRankings & Keywords\n- A keyword showing \"rank null\" despite having real search volume means the page is outside the top 100 results entirely. Flag this as a distinct, more serious problem than a keyword that has simply dropped a few positions.\n- Watch for keyword cannibalisation, where two pages target the same term and suppress each other. Duplicate titles and meta descriptions are a common underlying cause.\n- Location-based keywords (a specific town or service area) should each map to their own dedicated landing page. A missing or thin page for a location is usually why that location's keywords rank null while other locations rank well.\n- Branded keywords (the business's own name) should rank at or near position 1. If they do not, treat that as a trust or indexation issue rather than an ordinary ranking issue.\n\nLocal SEO / GBP\n- Local pack visibility depends on NAP consistency (Name, Address, Phone matching across GBP, schema, and the website footer), review volume and recency, and accurate categories/services.\n- A drop in call clicks alongside rising impressions is a strong signal to check for a data or tracking mismatch (such as a wrong phone number) before concluding that demand has fallen.\n\nPrioritising Recommendations\nScore every recommendation using this matrix before writing Section 4:\n- Critical/Urgent: high business impact, low effort (e.g. fixing a mismatched phone number, fixing duplicate titles). These go first.\n- Quick wins: low effort or low competition with clear traffic or lead upside.\n- Big bets: higher effort, higher potential value (e.g. building a missing location landing page).\n- Longer-term: content or authority-building work with a longer payoff horizon.\n\nOutput Structure & Formatting:\nGenerate the response using the following standard template. Use Markdown formatting (Bold, Bullet points) and Emojis to make it scannable.\n1. Heading: ### **IM Summary & Analysis for [Client Name]**\n2. Section 1: Overall Summary\nA 3-5 sentence executive summary. Highlight the biggest win, the biggest concern, and the overall health of the account.\n3. Section 2: Performance Highlights & Trends\nUse bullet points with emojis to categorize findings.\nRankings/Visibility 📈: trends in keywords, 'Above the Fold' visibility, and AI Share of Voice. Use Accuranker and GSC average position together.\nTraffic & Engagement 📊: Year-on-Year (YoY) and Month-on-Month (MoM) comparisons. Note any disconnects between traffic volume and engagement time, and between GSC clicks and GA4 organic sessions.\nKey events / leads: Trends in overall and organic key events and telephone / email / WhatsApp clicks. Particular interest in QoQ & YoY stats.\nLocal SEO / GBP 📍: Trends in calls, directions, and profile views. Note the impact of reviews if data is available.\nTechnical & On-Page 🛠️: PageSpeed scores, crawl issues grouped by root cause, schema markup and the GBP vs schema cross-check.\nData Integrity ⚠️: (If applicable) Mention tracking errors, spam issues, or GSC verification problems.\n4. Section 3: Key Issues & Opportunities\nA bulleted list of the specific problems hindering growth or opportunities for quick wins.\nExample: Critical Lack of Reviews, Mobile Speed Issues, Missing Call Tracking (CTM).\n5. Section 4: Strategic Recommendations / Upsells\nA numbered list of specific recommendations the Account Manager should pitch to the client.\nPrioritise \"High Impact/Urgent\" items first, using the priority matrix above.\nInclude upsell opportunities (e.g., \"Upgrade to Tier 3 for CRO,\" \"Start PPC\") where relevant to the data.\n6. Closing\nEnd with a single, helpful next step question (e.g., \"Would you like me to draft an email to the client regarding the review strategy?\").\n\nStyle Rules:\nTone: Professional, insightful, direct, and encouraging.\nVisuals: Use horizontal rules (***) to separate sections.\nEmphasis: Use bolding for key metrics (percentages, numbers) and important takeaways so the user can scan the report quickly.\nNo Fluff: Do not repeat the raw data lists or full URL lists; summarise what the data means and why it matters. Every stat needs a plain-English \"so what\" that a non-marketer would understand.\nLanguage: UK English throughout.\nPunctuation: never use em dashes. Use commas, full stops, colons or brackets instead.\nVoice: write in natural, plain human English that reads as though written by a person. Avoid corporate jargon and filler phrases.`,\n  messages: [\n    { role: \"user\", content: `Client Name: ${$('Edit Fields').first().json.client_name}\n\nHere is the raw SEO audit data compiled from this month's health check (NinjaCat/GA4, Accuranker, Google Search Console, Google Business Profile, and the technical crawl). Please analyse it and produce the IM Summary & Analysis report:\n\n${$('Build Doc Content').first().json.requests[0].insertText.text}` }\n  ]\n}) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10864,
+        11072
+      ],
+      "id": "a99ecc6c-b845-4ead-9dcc-2fc762b28432",
+      "name": "Analyse with Claude (Haiku)",
+      "retryOnFail": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "anthropicApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your anthropicApi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "you@example.com",
+        "subject": "=IM Summary & Analysis - {{ $('Edit Fields').first().json.client_name }} - {{ DateTime.now().toFormat('MMMM yyyy') }}",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        11248,
+        11072
+      ],
+      "id": "3d95e873-bc9d-4c68-aa1e-29fb55051c4c",
+      "name": "Email Me the Summary",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your gmailOAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Turn the model's markdown reply into styled HTML for the email body.\nconst aiItem = $input.first().json;\nconst errRaw = aiItem.error || (aiItem.message && aiItem.message.error) || null;\nconst aiError = (errRaw && typeof errRaw === 'object') ? (errRaw.message || JSON.stringify(errRaw)) : errRaw;\n// Claude's Messages API returns { content: [ { type: 'text', text: '...' } ] }.\n// The message.content / response / text checks are kept as a fallback in\n// case this ever points at a different (e.g. Ollama-shaped) endpoint again.\nlet raw = (Array.isArray(aiItem.content) && aiItem.content[0] && aiItem.content[0].text)\n  || (aiItem.message && aiItem.message.content)\n  || aiItem.response\n  || aiItem.text\n  || '';\n\n// The Qwen/Ollama call has onError: continueRegularOutput so a failed or\n// oversized request never crashes this client's run - but that also meant\n// a failure used to produce a silently blank email with no clue why. Make\n// the failure visible instead, so a blank summary is never mistaken for a\n// clean run with nothing to say.\nif (!raw) {\n  raw = aiError\n    ? `## AI Summary Unavailable\\n\\nThe AI summary could not be generated for this client: ${aiError}\\n\\nThe rest of this audit (data, doc, dashboard log) still completed normally - check the Claude node's output for this client's run and re-run the summary if needed.`\n    : '## AI Summary Unavailable\\n\\nThe AI returned an empty response for this client. This usually means the request hit a rate limit or auth issue, or the Claude API was briefly unreachable. Check the Claude node\\'s output for this client\\'s run.';\n}\n\nfunction escapeHtml(s) {\n  return s\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;');\n}\n\nfunction inlineFormat(line) {\n  line = line.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');\n  line = line.replace(/(^|[^*])\\*([^*\\n]+)\\*(?!\\*)/g, '$1<em>$2</em>');\n  return line;\n}\n\nfunction mdToHtml(md) {\n  const lines = escapeHtml(md).split('\\n');\n  let html = '';\n  let inUl = false;\n  let inOl = false;\n\n  const closeLists = () => {\n    if (inUl) { html += '</ul>'; inUl = false; }\n    if (inOl) { html += '</ol>'; inOl = false; }\n  };\n\n  for (const rawLine of lines) {\n    const line = rawLine.trim();\n\n    if (line === '') { closeLists(); continue; }\n\n    if (/^(\\*\\*\\*+|---+)$/.test(line)) {\n      closeLists();\n      html += '<hr style=\"border:none;border-top:1px solid #ddd;margin:24px 0;\">';\n      continue;\n    }\n\n    let m;\n    if ((m = line.match(/^######\\s+(.*)$/))) { closeLists(); html += `<h6 style=\"margin:18px 0 6px;\">${inlineFormat(m[1])}</h6>`; continue; }\n    if ((m = line.match(/^#####\\s+(.*)$/)))  { closeLists(); html += `<h5 style=\"margin:18px 0 6px;\">${inlineFormat(m[1])}</h5>`; continue; }\n    if ((m = line.match(/^####\\s+(.*)$/)))   { closeLists(); html += `<h4 style=\"margin:18px 0 6px;\">${inlineFormat(m[1])}</h4>`; continue; }\n    if ((m = line.match(/^###\\s+(.*)$/)))    { closeLists(); html += `<h3 style=\"margin:22px 0 8px;color:#1a1a1a;\">${inlineFormat(m[1])}</h3>`; continue; }\n    if ((m = line.match(/^##\\s+(.*)$/)))     { closeLists(); html += `<h2 style=\"margin:24px 0 10px;color:#1a1a1a;\">${inlineFormat(m[1])}</h2>`; continue; }\n    if ((m = line.match(/^#\\s+(.*)$/)))      { closeLists(); html += `<h1 style=\"margin:24px 0 10px;color:#1a1a1a;\">${inlineFormat(m[1])}</h1>`; continue; }\n\n    if ((m = line.match(/^\\d+\\.\\s+(.*)$/))) {\n      if (!inUl && !inOl) { html += '<ol style=\"margin:8px 0;padding-left:22px;\">'; inOl = true; }\n      else if (inUl) { closeLists(); html += '<ol style=\"margin:8px 0;padding-left:22px;\">'; inOl = true; }\n      html += `<li style=\"margin-bottom:4px;\">${inlineFormat(m[1])}</li>`;\n      continue;\n    }\n\n    if ((m = line.match(/^[-*]\\s+(.*)$/))) {\n      if (!inOl && !inUl) { html += '<ul style=\"margin:8px 0;padding-left:22px;\">'; inUl = true; }\n      else if (inOl) { closeLists(); html += '<ul style=\"margin:8px 0;padding-left:22px;\">'; inUl = true; }\n      html += `<li style=\"margin-bottom:4px;\">${inlineFormat(m[1])}</li>`;\n      continue;\n    }\n\n    closeLists();\n    html += `<p style=\"margin:10px 0;\">${inlineFormat(line)}</p>`;\n  }\n\n  closeLists();\n  return html;\n}\n\nconst bodyHtml = mdToHtml(raw);\n\nconst html = `<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#222222;max-width:680px;\">${bodyHtml}</div>`;\n\nreturn [{ json: { html, raw } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11056,
+        11072
+      ],
+      "id": "b646b9c5-ade1-4dcb-9668-badd8050bdf3",
+      "name": "Format Email (Markdown to HTML)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compact per-client snapshot for the dashboard. Runs in parallel to\n// \"Build Doc Content\" off the same \"Merge All Data\" input, so it can never\n// affect the existing Google Doc / email pipeline.\nconst items = $input.all();\n\nconst client = $('Edit Fields').first().json;\n\nconst ga4 = items.find(i => i.json.sessions_a !== undefined)?.json || {};\n\nconst findGscTotals = (period) =>\n  items.find(i => i.json.gsc_period === period)?.json?.rows?.[0] || {};\nconst gscA = findGscTotals('current');\nconst gscB = findGscTotals('yoy');\n\nconst speedMobile  = items.find(i => i.json.lighthouseResult !== undefined)?.json || {};\nconst speedDesktop = items.filter(i => i.json.lighthouseResult !== undefined)?.[1]?.json || {};\nconst perfScore = (r) => {\n  const s = r?.lighthouseResult?.categories?.performance?.score;\n  return (s === undefined || s === null) ? null : Math.round(s * 100);\n};\n\nconst accurankerRaw = items.find(i => i.json.desktop !== undefined && i.json.mobile !== undefined)?.json || {};\nconst accDesktop = accurankerRaw.desktop || {};\nconst accMobile  = accurankerRaw.mobile  || {};\n\nconst pageSummaries = items.filter(i => i.json.record_type === 'page_summary').map(i => i.json);\nconst crawlIssues   = items.filter(i => i.json.record_type === 'issue').map(i => i.json);\n\nreturn [{\n  json: {\n    run_date: new Date().toISOString().split('T')[0],\n    client_name: client.client_name,\n    domain: client.domain,\n\n    sessions_current: ga4.sessions_a ?? null,\n    sessions_yoy: ga4.sessions_b ?? null,\n    organic_sessions_current: ga4.organicSessions_a ?? null,\n    organic_sessions_yoy: ga4.organicSessions_b ?? null,\n    leads_current: ga4.keyEvents_a ?? null,\n    leads_yoy: ga4.keyEvents_b ?? null,\n    organic_leads_current: ga4.organicKeyEvents_a ?? null,\n    organic_leads_yoy: ga4.organicKeyEvents_b ?? null,\n\n    gsc_clicks_current: gscA.clicks ?? null,\n    gsc_clicks_yoy: gscB.clicks ?? null,\n    gsc_impressions_current: gscA.impressions ?? null,\n    gsc_avg_position_current: gscA.position ?? null,\n    gsc_avg_position_yoy: gscB.position ?? null,\n\n    pagespeed_mobile_score: perfScore(speedMobile),\n    pagespeed_desktop_score: perfScore(speedDesktop),\n\n    accuranker_avg_rank_desktop: accDesktop.average_rank ?? null,\n    accuranker_top3_desktop: accDesktop.pos_1_3 ?? null,\n    accuranker_top10_desktop: (accDesktop.pos_1_3 ?? 0) + (accDesktop.pos_4_10 ?? 0),\n    accuranker_avg_rank_mobile: accMobile.average_rank ?? null,\n\n    pages_crawled: pageSummaries.length,\n    pages_with_issues: pageSummaries.filter(p => p.has_issues).length,\n    crawl_issue_count: crawlIssues.length,\n  }\n}];\n"
+      },
+      "id": "d2188e78-0110-420b-8327-a23db6d406dd",
+      "name": "Build Dashboard Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10256,
+        11408
+      ],
+      "notes": "Parallel branch off 'Merge All Data' - does not touch the Google Doc / email path at all."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Audit History",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "run_date",
+              "displayName": "run_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "domain",
+              "displayName": "domain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sessions_current",
+              "displayName": "sessions_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sessions_yoy",
+              "displayName": "sessions_yoy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "organic_sessions_current",
+              "displayName": "organic_sessions_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "organic_sessions_yoy",
+              "displayName": "organic_sessions_yoy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "leads_current",
+              "displayName": "leads_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "leads_yoy",
+              "displayName": "leads_yoy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "organic_leads_current",
+              "displayName": "organic_leads_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "organic_leads_yoy",
+              "displayName": "organic_leads_yoy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "gsc_clicks_current",
+              "displayName": "gsc_clicks_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "gsc_clicks_yoy",
+              "displayName": "gsc_clicks_yoy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "gsc_impressions_current",
+              "displayName": "gsc_impressions_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "gsc_avg_position_current",
+              "displayName": "gsc_avg_position_current",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "gsc_avg_position_yoy",
+              "displayName": "gsc_avg_position_yoy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pagespeed_mobile_score",
+              "displayName": "pagespeed_mobile_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pagespeed_desktop_score",
+              "displayName": "pagespeed_desktop_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "accuranker_avg_rank_desktop",
+              "displayName": "accuranker_avg_rank_desktop",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "accuranker_top3_desktop",
+              "displayName": "accuranker_top3_desktop",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "accuranker_top10_desktop",
+              "displayName": "accuranker_top10_desktop",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "accuranker_avg_rank_mobile",
+              "displayName": "accuranker_avg_rank_mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pages_crawled",
+              "displayName": "pages_crawled",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pages_with_issues",
+              "displayName": "pages_with_issues",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "crawl_issue_count",
+              "displayName": "crawl_issue_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "5bcd7bb4-964d-4683-b853-80881e12d377",
+      "name": "Log Audit Snapshot to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        10512,
+        11408
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSheetsOAuth2Api"
+        }
+      },
+      "notes": "Pick your real Google Sheets credential here after import - it never carries over from an export. Also fill in the real sheet id (currently a placeholder)."
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "a5504e2b-be6c-4d2f-b79e-2b866a75c038",
+      "name": "Get Clients",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        7696,
+        9280
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL",
+          "name": "Your googleSheetsOAuth2Api"
+        }
+      },
+      "notes": "Reads every row from the 'Clients' tab: client_name, domain, ga_property_id, gsc_property. After import: pick your real Google Sheets credential, and check the operation still shows 'Get row(s) in sheet' (n8n sometimes renames this option between versions)."
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "7ecdd848-b6bf-4e51-bdad-8684e605958d",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        7824,
+        9280
+      ],
+      "notes": "Processes exactly one client fully (through to the email/sheet-log step) before starting the next, so no client's data can ever cross into another's merge nodes. Output 0 = done, output 1 = loop."
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "a4852e0e-64e3-4dcb-ab45-eb1af4481aae",
+      "name": "Client Done (Audit)",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        11248,
+        11408
+      ],
+      "notes": "Waits for both this client's email/doc step AND its sheet-log step to finish before moving the loop on to the next client."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "PageSpeed Desktop",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Url inspection index status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "List verified sites",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GA4 — Standard Metrics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GSC Period A",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GSC Period B",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GA4 — Organic Metrics ",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GA4 Click Events",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PageSpeed Mobile",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GA4 Standard Metrics YoY",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GA4 Organic Metrics YoY",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GA4 Click Events YoY",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GBP - List Accounts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - List Domains ",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Librecrawl crawl node",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GSC Totals QoQ1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GSC Totals MoM1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GSC Totals MoM Prev1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GSC Totals A1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GSC Totals B1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List verified sites": {
+      "main": [
+        [
+          {
+            "node": "Merge GSC Data",
+            "type": "main",
+            "index": 8
+          }
+        ]
+      ]
+    },
+    "Url inspection index status": {
+      "main": [
+        [
+          {
+            "node": "Merge GSC Data",
+            "type": "main",
+            "index": 7
+          }
+        ]
+      ]
+    },
+    "PageSpeed Desktop": {
+      "main": [
+        [
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "GSC Period A": {
+      "main": [
+        [
+          {
+            "node": "Merge GSC Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GA4 Click Events": {
+      "main": [
+        [
+          {
+            "node": "Merge QoQ & MoM",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "GA4 — Standard Metrics": {
+      "main": [
+        [
+          {
+            "node": "Merge QoQ & MoM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GA4 — Organic Metrics ": {
+      "main": [
+        [
+          {
+            "node": "Merge QoQ & MoM",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    " Schema Checker": {
+      "main": [
+        [
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Merge All Data": {
+      "main": [
+        [
+          {
+            "node": "Build Doc Content",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Dashboard Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PageSpeed Mobile": {
+      "main": [
+        [
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GSC Period B": {
+      "main": [
+        [
+          {
+            "node": "Merge GSC Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "GA4 Parse Code node": {
+      "main": [
+        [
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Create Google Doc": {
+      "main": [
+        [
+          {
+            "node": "Write to Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write to Google Doc": {
+      "main": [
+        [
+          {
+            "node": "Analyse with Claude (Haiku)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Doc Content": {
+      "main": [
+        [
+          {
+            "node": "Create Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge GSC Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "Accuranker - List Domains ": {
+      "main": [
+        [
+          {
+            "node": "Accuranker - Find Domain ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Find Domain ID": {
+      "main": [
+        [
+          {
+            "node": "Accuranker - Keywords Last Year Desktop",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - Keywords Current Desktop",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - Keywords Initial Desktop",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - Keywords QoQ Desktop",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - Keywords MoM Prev Desktop",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - Keywords Current1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - Keywords Initial1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - Keywords Last Year1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - Keywords QoQ1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Accuranker - Keywords MoM Prev1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Parse": {
+      "main": [
+        [
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 6
+          }
+        ]
+      ]
+    },
+    "Tag after \"Accuranker – Keywords\"": {
+      "main": [
+        [
+          {
+            "node": "Accuranker Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag after \"Accuranker – Keywords Prior\"": {
+      "main": [
+        [
+          {
+            "node": "Accuranker Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "GA4 Standard Metrics YoY": {
+      "main": [
+        [
+          {
+            "node": "Merge YoY",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GA4 Organic Metrics YoY": {
+      "main": [
+        [
+          {
+            "node": "Merge YoY",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "GA4 Click Events YoY": {
+      "main": [
+        [
+          {
+            "node": "Merge All GA Data",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge YoY": {
+      "main": [
+        [
+          {
+            "node": "Merge All GA Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge QoQ & MoM": {
+      "main": [
+        [
+          {
+            "node": "Merge All GA Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All GA Data": {
+      "main": [
+        [
+          {
+            "node": "GA4 Parse Code node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag after \"Accuranker - Keywords QoQ\"": {
+      "main": [
+        [
+          {
+            "node": "Accuranker Merge",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Tag after \"Accuranker - Keywords MoM Prev\"": {
+      "main": [
+        [
+          {
+            "node": "Accuranker Merge",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords Current Desktop": {
+      "main": [
+        [
+          {
+            "node": "Tag after \"Accuranker – Keywords\"",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords Initial Desktop": {
+      "main": [
+        [
+          {
+            "node": "Tag after \"Accuranker – Initial Keywords\"2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords Last Year Desktop": {
+      "main": [
+        [
+          {
+            "node": "Tag after \"Accuranker – Keywords Prior\"",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords QoQ Desktop": {
+      "main": [
+        [
+          {
+            "node": "Tag after \"Accuranker - Keywords QoQ\"",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords MoM Prev Desktop": {
+      "main": [
+        [
+          {
+            "node": "Tag after \"Accuranker - Keywords MoM Prev\"",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords Current1": {
+      "main": [
+        [
+          {
+            "node": "Tag after \"Accuranker – Keywords\"1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords Initial1": {
+      "main": [
+        [
+          {
+            "node": "Tag after \"Accuranker – Inital Keywords\"2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords Last Year1": {
+      "main": [
+        [
+          {
+            "node": "Tag after \"Accuranker – Keywords Prior\"1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords QoQ1": {
+      "main": [
+        [
+          {
+            "node": "Tag after \"Accuranker - Keywords QoQ\"1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accuranker - Keywords MoM Prev1": {
+      "main": [
+        [
+          {
+            "node": "Tag after \"Accuranker - Keywords MoM Prev\"1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag after \"Accuranker – Keywords\"1": {
+      "main": [
+        [
+          {
+            "node": "Accuranker Merge",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "Tag after \"Accuranker – Keywords Prior\"1": {
+      "main": [
+        [
+          {
+            "node": "Accuranker Merge",
+            "type": "main",
+            "index": 7
+          }
+        ]
+      ]
+    },
+    "Tag after \"Accuranker - Keywords QoQ\"1": {
+      "main": [
+        [
+          {
+            "node": "Accuranker Merge",
+            "type": "main",
+            "index": 8
+          }
+        ]
+      ]
+    },
+    "Tag after \"Accuranker - Keywords MoM Prev\"1": {
+      "main": [
+        [
+          {
+            "node": "Accuranker Merge",
+            "type": "main",
+            "index": 9
+          }
+        ]
+      ]
+    },
+    "Accuranker Merge": {
+      "main": [
+        [
+          {
+            "node": "Accuranker - Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag after \"Accuranker – Inital Keywords\"2": {
+      "main": [
+        [
+          {
+            "node": "Accuranker Merge",
+            "type": "main",
+            "index": 6
+          }
+        ]
+      ]
+    },
+    "Tag after \"Accuranker – Initial Keywords\"2": {
+      "main": [
+        [
+          {
+            "node": "Accuranker Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "GBP - List Accounts": {
+      "main": [
+        [
+          {
+            "node": "List Locations node",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "List Locations node": {
+      "main": [
+        [
+          {
+            "node": "Performance data GBP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Performance data GBP": {
+      "main": [
+        [
+          {
+            "node": "Performance API code node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Performance API code node": {
+      "main": [
+        [
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 7
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": " Schema Checker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Librecrawl crawl node": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge All Data",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "GSC Totals QoQ1": {
+      "main": [
+        [
+          {
+            "node": "GSC Totals QoQ Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GSC Totals MoM1": {
+      "main": [
+        [
+          {
+            "node": "GSC Totals MoM Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GSC Totals MoM Prev1": {
+      "main": [
+        [
+          {
+            "node": "GSC Totals MoM Prev Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GSC Totals A1": {
+      "main": [
+        [
+          {
+            "node": "GSC Totals A set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GSC Totals B1": {
+      "main": [
+        [
+          {
+            "node": "GSC Totals YoY set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GSC Totals QoQ Set": {
+      "main": [
+        [
+          {
+            "node": "Merge GSC Data",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "GSC Totals MoM Set": {
+      "main": [
+        [
+          {
+            "node": "Merge GSC Data",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "GSC Totals MoM Prev Set": {
+      "main": [
+        [
+          {
+            "node": "Merge GSC Data",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "GSC Totals A set": {
+      "main": [
+        [
+          {
+            "node": "Merge GSC Data",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "GSC Totals YoY set": {
+      "main": [
+        [
+          {
+            "node": "Merge GSC Data",
+            "type": "main",
+            "index": 6
+          }
+        ]
+      ]
+    },
+    "Format Email (Markdown to HTML)": {
+      "main": [
+        [
+          {
+            "node": "Email Me the Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Dashboard Row": {
+      "main": [
+        [
+          {
+            "node": "Log Audit Snapshot to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Clients": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Me the Summary": {
+      "main": [
+        [
+          {
+            "node": "Client Done (Audit)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Audit Snapshot to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Client Done (Audit)",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Client Done (Audit)": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyse with Claude (Haiku)": {
+      "main": [
+        [
+          {
+            "node": "Format Email (Markdown to HTML)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
